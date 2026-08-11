@@ -1,25 +1,42 @@
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
-  query, orderBy, serverTimestamp, arrayUnion, arrayRemove, getDoc,
+  query, orderBy, where, serverTimestamp, arrayUnion, arrayRemove, getDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
 /* ---------- Boards ---------- */
 
 export function subscribeBoards(uid, email, callback) {
-  // Wir laden alle Boards und filtern client-seitig nach Mitgliedschaft,
-  // da Firestore keine "array-contains OR email-contains" Query in einem Call kann.
-  const q = query(collection(db, 'boards'), orderBy('createdAt', 'desc'))
-  return onSnapshot(q, (snap) => {
-    const boards = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter(
-        (b) =>
-          (b.members || []).includes(uid) ||
-          (b.memberEmails || []).includes(email)
-      )
+  // Firestore-Regeln prüfen pro Board "uid in members ODER email in memberEmails".
+  // Eine ungefilterte Collection-Query würde das nicht erfüllen (permission-denied),
+  // deshalb zwei gezielte array-contains-Queries, deren Ergebnisse wir mergen.
+  let membersResult = []
+  let emailResult = []
+
+  function emit() {
+    const merged = new Map()
+    for (const b of [...membersResult, ...emailResult]) merged.set(b.id, b)
+    const boards = Array.from(merged.values()).sort((a, b) => {
+      const ta = a.createdAt?.toMillis?.() || 0
+      const tb = b.createdAt?.toMillis?.() || 0
+      return tb - ta
+    })
     callback(boards)
+  }
+
+  const qByMember = query(collection(db, 'boards'), where('members', 'array-contains', uid))
+  const qByEmail = query(collection(db, 'boards'), where('memberEmails', 'array-contains', email))
+
+  const unsub1 = onSnapshot(qByMember, (snap) => {
+    membersResult = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    emit()
   })
+  const unsub2 = onSnapshot(qByEmail, (snap) => {
+    emailResult = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    emit()
+  })
+
+  return () => { unsub1(); unsub2() }
 }
 
 export async function createBoard(title, color, uid, email) {
