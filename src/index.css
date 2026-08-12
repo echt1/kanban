@@ -227,3 +227,12 @@ input, textarea, select {
 .checklist-progress-fill {
   height: 100%; background: var(--accent-sage); transition: width 0.2s ease;
 }
+
+.board-card:hover .card-edit-btn { opacity: 1 !important; }
+
+.icon-btn {
+  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: transparent; border: 1px solid var(--line);
+  font-size: 16px; color: var(--text-primary); flex-shrink: 0;
+}
+.icon-btn:hover { background: rgba(128,128,128,0.15); }

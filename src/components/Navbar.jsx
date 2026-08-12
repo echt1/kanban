@@ -1,28 +1,43 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import SettingsModal from './SettingsModal'
 
-export default function Navbar({ boardTitle, rightSlot }) {
+export default function Navbar({ boardTitle, centerSlot, icons, boardSettingsSection }) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const [showSettings, setShowSettings] = useState(false)
 
   return (
     <nav style={styles.nav}>
-      <Link to="/" style={styles.brand}>
-        <span style={styles.pin} />
-        Board
-      </Link>
-      {boardTitle && <span style={styles.crumb}>/ {boardTitle}</span>}
-      <div style={{ flex: 1 }} />
-      {rightSlot}
-      <button className="btn-ghost" onClick={toggleTheme} title="Theme wechseln" style={styles.themeBtn}>
-        {theme === 'dark' ? '☾' : '☀'}
-      </button>
-      {user && (
-        <div style={styles.userWrap}>
-          <span style={styles.email}>{user.email}</span>
-          <button className="btn-ghost" onClick={logout}>Abmelden</button>
-        </div>
+      <div style={styles.left}>
+        <Link to="/" style={styles.brand}>
+          <span style={styles.pin} />
+          Board
+        </Link>
+        {boardTitle && <span style={styles.crumb}>/ {boardTitle}</span>}
+      </div>
+
+      <div style={styles.center}>{centerSlot}</div>
+
+      <div style={styles.right}>
+        {icons}
+        <button className="icon-btn" onClick={toggleTheme} title="Theme wechseln">
+          {theme === 'dark' ? '☾' : '☀'}
+        </button>
+        <button className="icon-btn" onClick={() => setShowSettings(true)} title="Einstellungen">
+          ⚙
+        </button>
+      </div>
+
+      {showSettings && (
+        <SettingsModal
+          user={user}
+          onLogout={logout}
+          onClose={() => setShowSettings(false)}
+          boardSection={boardSettingsSection}
+        />
       )}
     </nav>
   )
@@ -30,18 +45,22 @@ export default function Navbar({ boardTitle, rightSlot }) {
 
 const styles = {
   nav: {
-    display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px',
-    borderBottom: '1px solid var(--line)', background: 'var(--bg-surface)',
+    display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12,
+    padding: '12px 24px', borderBottom: '1px solid var(--line)', background: 'var(--bg-surface)',
   },
+  left: { display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 },
+  center: { display: 'flex', justifyContent: 'center' },
+  right: { display: 'flex', alignItems: 'center', gap: 8, justifySelf: 'end' },
   brand: {
     fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20,
     textDecoration: 'none', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8,
+    flexShrink: 0,
   },
   pin: {
     width: 10, height: 10, borderRadius: '50%', background: 'var(--accent-amber)', display: 'inline-block',
   },
-  crumb: { color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 14 },
-  themeBtn: { fontSize: 15, padding: '7px 11px', lineHeight: 1 },
-  userWrap: { display: 'flex', alignItems: 'center', gap: 12 },
-  email: { color: 'var(--muted)', fontSize: 13, fontFamily: 'var(--font-mono)' },
+  crumb: {
+    color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 14,
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
 }

@@ -1,15 +1,11 @@
 import { useState } from 'react'
 import { updateBoard } from '../lib/firestore'
-
-const PALETTE = [
-  '#6b8f71', '#d4a017', '#c1502e', '#4c6b8a', '#6e4b69',
-  '#8a9a5b', '#b0563d', '#3d5a78', '#a4574a', '#5b6b73',
-]
+import ColorGrid from './ColorGrid'
 
 export default function ManageLabelsModal({ board, onClose }) {
   const [labels, setLabels] = useState(board.labels || [])
   const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState(PALETTE[0])
+  const [newColor, setNewColor] = useState('#6b8f71')
   const [openPickerId, setOpenPickerId] = useState(null)
 
   async function persist(next) {
@@ -62,18 +58,8 @@ export default function ManageLabelsModal({ board, onClose }) {
                 <button style={styles.deleteBtn} onClick={() => deleteLabel(l.id)}>×</button>
               </div>
               {openPickerId === l.id && (
-                <div style={styles.paletteRow}>
-                  {PALETTE.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => recolorLabel(l.id, c)}
-                      style={{
-                        width: 22, height: 22, borderRadius: 5, background: c,
-                        border: l.color === c ? '2px solid var(--text-primary)' : '2px solid transparent',
-                      }}
-                    />
-                  ))}
+                <div style={{ padding: '8px 0 4px 40px' }}>
+                  <ColorGrid value={l.color} onChange={(c) => recolorLabel(l.id, c)} swatchSize={22} />
                 </div>
               )}
             </div>
@@ -95,18 +81,8 @@ export default function ManageLabelsModal({ board, onClose }) {
           <button className="btn" type="submit">+</button>
         </form>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
-          {PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setNewColor(c)}
-              style={{
-                width: 24, height: 24, borderRadius: 5, background: c,
-                border: newColor === c ? '2px solid var(--text-primary)' : '2px solid transparent',
-              }}
-            />
-          ))}
+        <div style={{ marginBottom: 22 }}>
+          <ColorGrid value={newColor} onChange={setNewColor} swatchSize={24} />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -121,5 +97,4 @@ const styles = {
   row: { display: 'flex', alignItems: 'center', gap: 8 },
   swatchBtn: { width: 32, height: 32, borderRadius: 6, border: 'none', flexShrink: 0, cursor: 'pointer' },
   deleteBtn: { background: 'none', color: 'var(--muted)', fontSize: 18, padding: '0 6px' },
-  paletteRow: { display: 'flex', gap: 6, padding: '6px 0 4px 40px', flexWrap: 'wrap' },
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Navigate } from 'react-router-dom'
+import { useParams, Navigate, useNavigate } from 'react-router-dom'
 import { DragDropContext } from '@hello-pangea/dnd'
 import { doc, onSnapshot, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import {
   subscribeLists, subscribeCards, createList, updateList, deleteList,
   createCard, createCardFull, updateCard, deleteCard, ensureMembership, addComment,
+  updateBoard, deleteBoard,
 } from '../lib/firestore'
 import Navbar from '../components/Navbar'
 import List from '../components/List'
@@ -18,6 +19,7 @@ import AutomationsModal from '../components/AutomationsModal'
 
 export default function BoardPage() {
   const { boardId } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [board, setBoard] = useState(undefined)
   const [lists, setLists] = useState([])
@@ -30,6 +32,11 @@ export default function BoardPage() {
   const [addingList, setAddingList] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
   const [search, setSearch] = useState('')
+  const [boardTitleDraft, setBoardTitleDraft] = useState('')
+
+  useEffect(() => {
+    if (board) setBoardTitleDraft(board.title)
+  }, [board?.title])
 
   useEffect(() => {
     ensureMembership(boardId, user.uid)
@@ -49,6 +56,11 @@ export default function BoardPage() {
     if (!fresh) setActiveCard(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards])
+
+  useEffect(() => {
+    if (board?.title) document.title = `${board.title} – Kanban`
+    return () => { document.title = 'Board – Kanban' }
+  }, [board?.title])
 
   const cardsByList = useMemo(() => {
     const map = {}
@@ -183,21 +195,51 @@ export default function BoardPage() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar
         boardTitle={board.title}
-        rightSlot={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              className="text-input"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Suchen …"
-              style={{ width: 160, padding: '7px 10px' }}
-            />
-            <button className="btn-ghost" onClick={() => setShowBackground(true)}>Hintergrund</button>
-            <button className="btn-ghost" onClick={() => setShowLabels(true)}>Kategorien</button>
-            <button className="btn-ghost" onClick={() => setShowAutomations(true)}>Automationen</button>
-            <button className="btn-ghost" onClick={() => setShowMembers(true)}>
-              Mitglieder ({board.memberEmails?.length || 1})
+        centerSlot={
+          <input
+            className="text-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Suchen …"
+            style={{ width: 220, padding: '7px 10px' }}
+          />
+        }
+        icons={
+          <>
+            <button className="icon-btn" onClick={() => setShowLabels(true)} title="Kategorien">🏷</button>
+            <button className="icon-btn" onClick={() => setShowAutomations(true)} title="Automationen">⚡</button>
+            <button className="icon-btn" onClick={() => setShowMembers(true)} title="Mitglieder">👥</button>
+          </>
+        }
+        boardSettingsSection={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <label className="field-label">Titel</label>
+              <input
+                className="text-input"
+                value={boardTitleDraft}
+                onChange={(e) => setBoardTitleDraft(e.target.value)}
+                onBlur={() => boardTitleDraft.trim() && boardTitleDraft !== board.title && updateBoard(boardId, { title: boardTitleDraft.trim() })}
+                onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+              />
+            </div>
+            <button className="btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowBackground(true)}>
+              Hintergrund ändern
             </button>
+            {isOwner && (
+              <button
+                className="btn-danger"
+                style={{ alignSelf: 'flex-start' }}
+                onClick={async () => {
+                  if (confirm('Board wirklich löschen? Das kann nicht rückgängig gemacht werden.')) {
+                    await deleteBoard(boardId)
+                    navigate('/')
+                  }
+                }}
+              >
+                Board löschen
+              </button>
+            )}
           </div>
         }
       />

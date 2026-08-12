@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Draggable } from '@hello-pangea/dnd'
 import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, useContextMenu } from './ContextMenu'
 
@@ -17,6 +18,8 @@ function hostnameOf(url) {
 
 export default function CardItem({ card, index, labels, dimmed, onClick, onQuickUpdate, onDelete }) {
   const { menu, open, close } = useContextMenu()
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState(card.title)
 
   const cardLabels = (card.labelIds || [])
     .map((id) => labels.find((l) => l.id === id))
@@ -41,10 +44,16 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
     onQuickUpdate({ done: !card.done })
   }
 
+  function commitTitle() {
+    setEditingTitle(false)
+    if (titleDraft.trim() && titleDraft !== card.title) onQuickUpdate({ title: titleDraft.trim() })
+    else setTitleDraft(card.title)
+  }
+
   const coverStyle = card.cover?.type === 'color' && card.cover.value
-    ? { background: card.cover.value }
+    ? { background: card.cover.value, height: 10 }
     : card.cover?.type === 'image' && card.cover.value
-      ? { backgroundImage: `url(${card.cover.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+      ? { backgroundImage: `url(${card.cover.value})`, backgroundSize: 'cover', backgroundPosition: 'center', height: 64 }
       : null
 
   return (
@@ -57,6 +66,7 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
             {...provided.dragHandleProps}
             onClick={onClick}
             onContextMenu={open}
+            className="board-card"
             style={{
               ...styles.card,
               opacity: dimmed ? 0.2 : card.done ? 0.6 : 1,
@@ -86,9 +96,35 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
                     title="Als erledigt markieren"
                   />
                 </label>
-                <p style={{ ...styles.title, textDecoration: card.done ? 'line-through' : 'none' }}>
-                  {card.title}
-                </p>
+                {editingTitle ? (
+                  <input
+                    autoFocus
+                    className="text-input"
+                    value={titleDraft}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onBlur={commitTitle}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitTitle()
+                      if (e.key === 'Escape') { setTitleDraft(card.title); setEditingTitle(false) }
+                    }}
+                    style={{ flex: 1, fontSize: 14, padding: '3px 6px' }}
+                  />
+                ) : (
+                  <>
+                    <p style={{ ...styles.title, textDecoration: card.done ? 'line-through' : 'none' }}>
+                      {card.title}
+                    </p>
+                    <button
+                      style={styles.editBtn}
+                      className="card-edit-btn"
+                      onClick={(e) => { e.stopPropagation(); setEditingTitle(true) }}
+                      title="Titel umbenennen"
+                    >
+                      ✎
+                    </button>
+                  </>
+                )}
               </div>
 
               {card.description && (
@@ -187,6 +223,10 @@ const styles = {
   },
   doneCheckbox: { width: 15, height: 15, cursor: 'pointer', display: 'block' },
   title: { margin: 0, lineHeight: 1.35, flex: 1 },
+  editBtn: {
+    background: 'none', color: 'var(--muted)', fontSize: 12, padding: '2px 4px',
+    flexShrink: 0, opacity: 0, transition: 'opacity 0.1s ease',
+  },
   descPreview: {
     margin: '4px 0 0 23px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.4,
     overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',

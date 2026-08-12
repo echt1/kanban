@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-
-const COVER_PALETTE = ['#6b8f71', '#d4a017', '#c1502e', '#4c6b8a', '#6e4b69', '#3d5a78']
+import ColorGrid from './ColorGrid'
 
 function googleCalendarUrl(title, isoDate) {
   const d = isoDate.replace(/-/g, '')
@@ -86,10 +85,10 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 560, padding: 0, overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 560, padding: 0, overflowX: 'hidden' }} onClick={(e) => e.stopPropagation()}>
 
         {card.cover?.type === 'color' && card.cover.value && (
-          <div style={{ height: 72, background: card.cover.value }} />
+          <div style={{ height: 32, background: card.cover.value }} />
         )}
         {card.cover?.type === 'image' && card.cover.value && (
           <div style={{ height: 110, backgroundImage: `url(${card.cover.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
@@ -120,25 +119,22 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 18 }}>
             <label className="field-label" style={{ marginBottom: 8 }}>Cover</label>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 10 }}>
             <button
               type="button"
               onClick={() => { setCover(null); setShowCoverImage(false) }}
-              style={{ ...styles.swatch, border: !card.cover ? '2px solid var(--accent-amber)' : '2px dashed var(--muted)', background: 'transparent' }}
+              style={{ ...styles.swatch, border: !card.cover ? '2px solid var(--accent-amber)' : '2px dashed var(--muted)', background: 'transparent', flexShrink: 0 }}
               title="Kein Cover"
             />
-            {COVER_PALETTE.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => { setCover({ type: 'color', value: c }); setShowCoverImage(false) }}
-                style={{ ...styles.swatch, background: c, border: card.cover?.value === c ? '2px solid var(--text-primary)' : '2px solid transparent' }}
-              />
-            ))}
-            <button type="button" className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => setShowCoverImage((s) => !s)}>
-              Bild-URL
-            </button>
+            <ColorGrid
+              value={card.cover?.type === 'color' ? card.cover.value : null}
+              onChange={(c) => { setCover({ type: 'color', value: c }); setShowCoverImage(false) }}
+              swatchSize={26}
+            />
           </div>
+          <button type="button" className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px', marginBottom: 18 }} onClick={() => setShowCoverImage((s) => !s)}>
+            Bild-URL {showCoverImage ? 'ausblenden' : 'stattdessen'}
+          </button>
           {showCoverImage && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
               <input
