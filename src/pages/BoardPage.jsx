@@ -13,6 +13,7 @@ import List from '../components/List'
 import CardModal from '../components/CardModal'
 import MembersModal from '../components/MembersModal'
 import ManageLabelsModal from '../components/ManageLabelsModal'
+import BackgroundModal from '../components/BackgroundModal'
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -23,6 +24,7 @@ export default function BoardPage() {
   const [activeCard, setActiveCard] = useState(null)
   const [showMembers, setShowMembers] = useState(false)
   const [showLabels, setShowLabels] = useState(false)
+  const [showBackground, setShowBackground] = useState(false)
   const [addingList, setAddingList] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
 
@@ -105,12 +107,21 @@ export default function BoardPage() {
     await batch.commit()
   }
 
+  const isOwner = board.ownerId === user.uid
+
+  const boardAreaStyle = board.background?.type === 'image' && board.background.value
+    ? { ...styles.boardArea, backgroundImage: `url(${board.background.value})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
+    : board.background?.type === 'color' && board.background.value
+      ? { ...styles.boardArea, background: board.background.value }
+      : styles.boardArea
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar
         boardTitle={board.title}
         rightSlot={
           <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-ghost" onClick={() => setShowBackground(true)}>Hintergrund</button>
             <button className="btn-ghost" onClick={() => setShowLabels(true)}>Kategorien</button>
             <button className="btn-ghost" onClick={() => setShowMembers(true)}>
               Mitglieder ({board.memberEmails?.length || 1})
@@ -119,7 +130,7 @@ export default function BoardPage() {
         }
       />
 
-      <div style={styles.boardArea}>
+      <div style={boardAreaStyle}>
         <DragDropContext onDragEnd={handleDragEnd}>
           <div style={styles.listsRow}>
             {lists.map((list) => (
@@ -174,8 +185,9 @@ export default function BoardPage() {
         />
       )}
 
-      {showMembers && <MembersModal board={board} onClose={() => setShowMembers(false)} />}
+      {showMembers && <MembersModal board={board} isOwner={isOwner} onClose={() => setShowMembers(false)} />}
       {showLabels && <ManageLabelsModal board={board} onClose={() => setShowLabels(false)} />}
+      {showBackground && <BackgroundModal board={board} onClose={() => setShowBackground(false)} />}
     </div>
   )
 }

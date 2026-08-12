@@ -50,7 +50,10 @@ export default function List({
         ) : (
           <h3 style={styles.title} onClick={() => setEditingTitle(true)}>{list.title}</h3>
         )}
-        <button style={styles.menuBtn} onClick={open} title="Optionen">⋯</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={styles.count}>{cards.length}</span>
+          <button style={styles.menuBtn} onClick={open} title="Optionen">⋯</button>
+        </div>
       </div>
 
       <Droppable droppableId={list.id}>
@@ -142,6 +145,10 @@ const styles = {
     cursor: 'text', color: 'var(--text-primary)', lineHeight: 1.25,
   },
   menuBtn: { background: 'none', color: 'var(--muted)', fontSize: 16, lineHeight: 1, padding: '0 4px' },
+  count: {
+    fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--muted)',
+    background: 'rgba(128,128,128,0.15)', padding: '2px 7px', borderRadius: 10,
+  },
   dropZone: { minHeight: 6, flex: '0 1 auto', overflowY: 'auto', padding: '2px 2px' },
   addBtn: {
     background: 'none', color: 'var(--muted)', fontSize: 13, textAlign: 'left',

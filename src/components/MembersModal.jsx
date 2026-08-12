@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { inviteMember, removeMember } from '../lib/firestore'
 
-export default function MembersModal({ board, onClose }) {
+export default function MembersModal({ board, isOwner, onClose }) {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -19,29 +19,36 @@ export default function MembersModal({ board, onClose }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Mitglieder</h2>
 
-        <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-          <input
-            type="email"
-            required
-            className="text-input"
-            placeholder="E-Mail-Adresse einladen"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button className="btn" disabled={busy}>Einladen</button>
-        </form>
+        {isOwner ? (
+          <>
+            <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <input
+                type="email"
+                required
+                className="text-input"
+                placeholder="E-Mail-Adresse einladen"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <button className="btn" disabled={busy}>Einladen</button>
+            </form>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
+              Die Person braucht ein Konto mit genau dieser E-Mail-Adresse (Google oder E-Mail/Passwort),
+              dann sieht sie das Board automatisch nach dem Einloggen.
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
+            Nur der Eigentümer dieses Boards kann Mitglieder einladen oder entfernen.
+          </p>
+        )}
 
-        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
-          Die Person braucht ein Konto mit genau dieser E-Mail-Adresse (Google oder E-Mail/Passwort),
-          dann sieht sie das Board automatisch nach dem Einloggen.
-        </p>
-
-        <label className="field-label">Eingeladen</label>
+        <label className="field-label">Mitglieder</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(board.memberEmails || []).map((m) => (
             <div key={m} style={styles.row}>
-              <span>{m}</span>
-              {m !== board.memberEmails[0] && (
+              <span>{m}{m === board.memberEmails[0] && <span style={styles.ownerTag}>Eigentümer</span>}</span>
+              {isOwner && m !== board.memberEmails[0] && (
                 <button style={styles.remove} onClick={() => removeMember(board.id, m)}>entfernen</button>
               )}
             </div>
@@ -59,7 +66,11 @@ export default function MembersModal({ board, onClose }) {
 const styles = {
   row: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: 6, fontSize: 13,
+    background: 'rgba(128,128,128,0.1)', padding: '8px 12px', borderRadius: 6, fontSize: 13,
+  },
+  ownerTag: {
+    fontSize: 10, marginLeft: 8, color: 'var(--accent-amber)', textTransform: 'uppercase',
+    letterSpacing: '0.04em', fontWeight: 700,
   },
   remove: { background: 'none', color: 'var(--accent-clay)', fontSize: 12, padding: 0 },
 }

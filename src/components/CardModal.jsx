@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 
+function googleCalendarUrl(title, isoDate) {
+  const d = isoDate.replace(/-/g, '')
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title || 'Aufgabe',
+    dates: `${d}/${d}`,
+  })
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
+
 export default function CardModal({ card, labels, onClose, onSave, onDelete, onManageLabels }) {
   const [title, setTitle] = useState(card.title)
   const [description, setDescription] = useState(card.description || '')
@@ -64,13 +74,25 @@ export default function CardModal({ card, labels, onClose, onSave, onDelete, onM
         </div>
 
         <label className="field-label" style={{ marginTop: 18 }}>Fällig am</label>
-        <input
-          type="date"
-          className="text-input"
-          value={dueDate || ''}
-          onChange={(e) => setDueDate(e.target.value)}
-          style={{ marginBottom: 16, maxWidth: 200 }}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <input
+            type="date"
+            className="text-input"
+            value={dueDate || ''}
+            onChange={(e) => setDueDate(e.target.value)}
+            style={{ maxWidth: 200 }}
+          />
+          {dueDate && (
+            <a
+              href={googleCalendarUrl(title, dueDate)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.linkBtn}
+            >
+              + Google Kalender
+            </a>
+          )}
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <label className="field-label" style={{ marginBottom: 8 }}>Kategorien</label>
