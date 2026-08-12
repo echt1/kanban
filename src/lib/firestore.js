@@ -129,10 +129,35 @@ export async function createCard(boardId, listId, title, order) {
   })
 }
 
+// Für Repeater-Kopien: legt eine Karte mit beliebigen vorbefüllten Feldern an
+export async function createCardFull(boardId, listId, data, order) {
+  return addDoc(collection(db, 'boards', boardId, 'cards'), {
+    listId,
+    title: data.title || 'Karte',
+    description: data.description || '',
+    dueDate: data.dueDate || null,
+    labelIds: data.labelIds || [],
+    link: data.link || null,
+    cover: data.cover || null,
+    checklist: (data.checklist || []).map((it) => ({ ...it, done: false })),
+    repeat: data.repeat || null,
+    done: false,
+    order,
+    createdAt: serverTimestamp(),
+  })
+}
+
 export async function updateCard(boardId, cardId, data) {
   return updateDoc(doc(db, 'boards', boardId, 'cards', cardId), data)
 }
 
 export async function deleteCard(boardId, cardId) {
   return deleteDoc(doc(db, 'boards', boardId, 'cards', cardId))
+}
+
+export async function addComment(boardId, cardId, text, authorEmail) {
+  const comment = { id: crypto.randomUUID(), text, authorEmail, createdAt: Date.now() }
+  return updateDoc(doc(db, 'boards', boardId, 'cards', cardId), {
+    comments: arrayUnion(comment),
+  })
 }

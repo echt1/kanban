@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeBoards, createBoard, deleteBoard } from '../lib/firestore'
+import { subscribeBoards, createBoard, deleteBoard, createList } from '../lib/firestore'
 import Navbar from '../components/Navbar'
 import CreateBoardModal from '../components/CreateBoardModal'
 
@@ -16,8 +16,11 @@ export default function Dashboard() {
     return unsub
   }, [user])
 
-  async function handleCreate(title, color) {
-    await createBoard(title, color, user.uid, user.email)
+  async function handleCreate(title, color, templateLists) {
+    const ref = await createBoard(title, color, user.uid, user.email)
+    for (let i = 0; i < (templateLists || []).length; i++) {
+      await createList(ref.id, templateLists[i], i)
+    }
     setShowCreate(false)
   }
 
@@ -35,7 +38,12 @@ export default function Dashboard() {
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 28 }}>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, margin: 0 }}>Deine Boards</h1>
-          <button className="btn" onClick={() => setShowCreate(true)}>+ Neues Board</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Link to="/calendar" className="btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+              Kalender
+            </Link>
+            <button className="btn" onClick={() => setShowCreate(true)}>+ Neues Board</button>
+          </div>
         </div>
 
         {boards === null && <p style={{ color: 'var(--muted)' }}>lädt …</p>}

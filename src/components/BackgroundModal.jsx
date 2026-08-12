@@ -71,19 +71,14 @@ export default function BackgroundModal({ board, onClose }) {
           </>
         ) : (
           <>
-            <label className="field-label">Bild-URL (z.B. ein direkter .png/.jpg-Link)</label>
+            <label className="field-label">Bild-URL</label>
             <input
               className="text-input"
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
               placeholder="https://…/bild.jpg"
-              style={{ marginBottom: 10 }}
+              style={{ marginBottom: 16 }}
             />
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
-              Muss ein öffentlich erreichbarer Bildlink sein (z.B. von Unsplash, Imgur, oder
-              einem eigenen Hoster). Direktes Hochladen geht ohne Firebase Storage
-              (kostenpflichtig) leider nicht.
-            </p>
             {imageUrl && (
               <div style={{
                 height: 100, borderRadius: 8, backgroundImage: `url(${imageUrl})`,

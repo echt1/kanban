@@ -7,7 +7,15 @@ function isoInDays(days) {
   return d.toISOString().slice(0, 10)
 }
 
-export default function CardItem({ card, index, labels, onClick, onQuickUpdate, onDelete }) {
+function hostnameOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+export default function CardItem({ card, index, labels, dimmed, onClick, onQuickUpdate, onDelete }) {
   const { menu, open, close } = useContextMenu()
 
   const cardLabels = (card.labelIds || [])
@@ -20,6 +28,7 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
 
   const checklist = card.checklist || []
   const doneCount = checklist.filter((i) => i.done).length
+  const commentCount = (card.comments || []).length
 
   function toggleLabel(id) {
     const has = (card.labelIds || []).includes(id)
@@ -31,6 +40,12 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
     e.stopPropagation()
     onQuickUpdate({ done: !card.done })
   }
+
+  const coverStyle = card.cover?.type === 'color' && card.cover.value
+    ? { background: card.cover.value }
+    : card.cover?.type === 'image' && card.cover.value
+      ? { backgroundImage: `url(${card.cover.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+      : null
 
   return (
     <>
@@ -44,47 +59,72 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
             onContextMenu={open}
             style={{
               ...styles.card,
-              opacity: card.done ? 0.6 : 1,
+              opacity: dimmed ? 0.2 : card.done ? 0.6 : 1,
+              pointerEvents: dimmed ? 'none' : 'auto',
               boxShadow: snapshot.isDragging
                 ? '0 12px 24px rgba(0,0,0,0.45)'
                 : '0 1px 3px rgba(0,0,0,0.3)',
               ...provided.draggableProps.style,
             }}
           >
-            {cardLabels.length > 0 && (
-              <div style={styles.labelRow}>
-                {cardLabels.map((l) => (
-                  <span key={l.id} style={{ ...styles.labelChip, background: l.color }}>{l.name}</span>
-                ))}
+            {coverStyle && <div style={{ ...styles.cover, ...coverStyle }} />}
+            <div style={styles.body}>
+              {cardLabels.length > 0 && (
+                <div style={styles.labelRow}>
+                  {cardLabels.map((l) => (
+                    <span key={l.id} style={{ ...styles.labelChip, background: l.color }}>{l.name}</span>
+                  ))}
+                </div>
+              )}
+              <div style={styles.titleRow}>
+                <label style={styles.checkboxHit} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={!!card.done}
+                    onChange={toggleDone}
+                    style={styles.doneCheckbox}
+                    title="Als erledigt markieren"
+                  />
+                </label>
+                <p style={{ ...styles.title, textDecoration: card.done ? 'line-through' : 'none' }}>
+                  {card.title}
+                </p>
               </div>
-            )}
-            <div style={styles.titleRow}>
-              <input
-                type="checkbox"
-                checked={!!card.done}
-                onChange={toggleDone}
-                onClick={(e) => e.stopPropagation()}
-                style={styles.doneCheckbox}
-                title="Als erledigt markieren"
-              />
-              <p style={{ ...styles.title, textDecoration: card.done ? 'line-through' : 'none' }}>
-                {card.title}
-              </p>
-            </div>
-            <div style={styles.metaRow}>
-              {due && (
-                <span style={{
-                  ...styles.due,
-                  color: isOverdue ? 'var(--accent-clay)' : isSoon ? 'var(--accent-amber)' : 'var(--muted)',
-                }}>
-                  {due.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
-                </span>
+
+              {card.description && (
+                <p style={styles.descPreview}>
+                  {card.description.length > 80 ? card.description.slice(0, 80) + '…' : card.description}
+                </p>
               )}
-              {checklist.length > 0 && (
-                <span style={styles.checklistBadge}>
-                  ☑ {doneCount}/{checklist.length}
-                </span>
+
+              {card.link && (
+                <a
+                  href={card.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={styles.linkChip}
+                >
+                  🔗 {hostnameOf(card.link)}
+                </a>
               )}
+
+              <div style={styles.metaRow}>
+                {due && (
+                  <span style={{
+                    ...styles.metaTag,
+                    color: isOverdue ? 'var(--accent-clay)' : isSoon ? 'var(--accent-amber)' : 'var(--muted)',
+                  }}>
+                    {card.repeat && '🔁 '}{due.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                  </span>
+                )}
+                {checklist.length > 0 && (
+                  <span style={styles.metaTag}>☑ {doneCount}/{checklist.length}</span>
+                )}
+                {commentCount > 0 && (
+                  <span style={styles.metaTag}>💬 {commentCount}</span>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -130,19 +170,34 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
 const styles = {
   card: {
     background: 'var(--card-bg)', color: 'var(--card-text)', borderRadius: 6,
-    border: '1px solid var(--card-border)',
-    padding: '10px 12px 12px', marginBottom: 8, cursor: 'pointer',
-    fontSize: 14, position: 'relative',
+    border: '1px solid var(--card-border)', overflow: 'hidden',
+    marginBottom: 8, cursor: 'pointer', fontSize: 14, position: 'relative',
   },
+  cover: { height: 64, width: '100%' },
+  body: { padding: '10px 12px 12px' },
   labelRow: { display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap' },
   labelChip: {
     fontSize: 10, fontWeight: 700, color: '#fff', padding: '2px 6px', borderRadius: 3,
     textTransform: 'uppercase', letterSpacing: '0.03em',
   },
-  titleRow: { display: 'flex', alignItems: 'flex-start', gap: 8 },
-  doneCheckbox: { width: 15, height: 15, marginTop: 2, flexShrink: 0, cursor: 'pointer' },
+  titleRow: { display: 'flex', alignItems: 'flex-start', gap: 6 },
+  checkboxHit: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 7, margin: -7, cursor: 'pointer', flexShrink: 0,
+  },
+  doneCheckbox: { width: 15, height: 15, cursor: 'pointer', display: 'block' },
   title: { margin: 0, lineHeight: 1.35, flex: 1 },
-  metaRow: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, paddingLeft: 23 },
-  due: { fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500 },
-  checklistBadge: { fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)' },
+  descPreview: {
+    margin: '4px 0 0 23px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.4,
+    overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
+    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+  },
+  linkChip: {
+    display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, marginLeft: 23,
+    fontSize: 12, color: 'var(--muted)', background: 'rgba(128,128,128,0.15)',
+    padding: '3px 8px', borderRadius: 4, textDecoration: 'none', maxWidth: '85%',
+    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  },
+  metaRow: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, paddingLeft: 23, flexWrap: 'wrap' },
+  metaTag: { fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)' },
 }

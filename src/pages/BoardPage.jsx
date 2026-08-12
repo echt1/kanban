@@ -6,7 +6,7 @@ import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 import {
   subscribeLists, subscribeCards, createList, updateList, deleteList,
-  createCard, updateCard, deleteCard, ensureMembership,
+  createCard, createCardFull, updateCard, deleteCard, ensureMembership, addComment,
 } from '../lib/firestore'
 import Navbar from '../components/Navbar'
 import List from '../components/List'
@@ -14,6 +14,7 @@ import CardModal from '../components/CardModal'
 import MembersModal from '../components/MembersModal'
 import ManageLabelsModal from '../components/ManageLabelsModal'
 import BackgroundModal from '../components/BackgroundModal'
+import AutomationsModal from '../components/AutomationsModal'
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -25,8 +26,10 @@ export default function BoardPage() {
   const [showMembers, setShowMembers] = useState(false)
   const [showLabels, setShowLabels] = useState(false)
   const [showBackground, setShowBackground] = useState(false)
+  const [showAutomations, setShowAutomations] = useState(false)
   const [addingList, setAddingList] = useState(false)
   const [newListTitle, setNewListTitle] = useState('')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     ensureMembership(boardId, user.uid)
@@ -72,6 +75,63 @@ export default function BoardPage() {
     if (confirm('Karte löschen?')) await deleteCard(boardId, cardId)
   }
 
+  function nextDueDate(isoDate, freq) {
+    const d = isoDate ? new Date(isoDate) : new Date()
+    if (freq === 'daily') d.setDate(d.getDate() + 1)
+    if (freq === 'weekly') d.setDate(d.getDate() + 7)
+    if (freq === 'monthly') d.setMonth(d.getMonth() + 1)
+    return d.toISOString().slice(0, 10)
+  }
+
+  // Zentrale Stelle für alle Kartenänderungen: kümmert sich zusätzlich um den
+  // Wiederholungs-Mechanismus (legt bei Erledigen einer wiederkehrenden Karte
+  // automatisch die nächste Instanz an).
+  async function handleCardUpdate(cardId, data) {
+    const card = cards.find((c) => c.id === cardId)
+    if (card && data.done === true && card.done !== true && card.repeat?.freq && card.dueDate) {
+      const listCards = cardsByList[card.listId] || []
+      await createCardFull(boardId, card.listId, {
+        title: card.title,
+        description: card.description,
+        labelIds: card.labelIds,
+        checklist: card.checklist,
+        link: card.link,
+        cover: card.cover,
+        repeat: card.repeat,
+        dueDate: nextDueDate(card.dueDate, card.repeat.freq),
+      }, listCards.length)
+      await updateCard(boardId, cardId, { ...data, repeat: null })
+      return
+    }
+    await updateCard(boardId, cardId, data)
+  }
+
+  async function applyAutomations(triggerType, listId, cardId) {
+    const rules = (board.automations || []).filter((r) => r.trigger === triggerType && r.triggerListId === listId)
+    for (const rule of rules) {
+      if (rule.action === 'add_label' && rule.actionLabelId) {
+        const card = cards.find((c) => c.id === cardId)
+        const next = Array.from(new Set([...(card?.labelIds || []), rule.actionLabelId]))
+        await updateCard(boardId, cardId, { labelIds: next })
+      } else if (rule.action === 'remove_label' && rule.actionLabelId) {
+        const card = cards.find((c) => c.id === cardId)
+        await updateCard(boardId, cardId, { labelIds: (card?.labelIds || []).filter((id) => id !== rule.actionLabelId) })
+      } else if (rule.action === 'mark_done') {
+        await handleCardUpdate(cardId, { done: true })
+      } else if (rule.action === 'due_in_days') {
+        const d = new Date()
+        d.setDate(d.getDate() + (rule.actionDays || 0))
+        await updateCard(boardId, cardId, { dueDate: d.toISOString().slice(0, 10) })
+      }
+    }
+  }
+
+  async function handleAddCard(listId, title) {
+    const listCards = cardsByList[listId] || []
+    const ref = await createCard(boardId, listId, title, listCards.length)
+    await applyAutomations('created', listId, ref.id)
+  }
+
   async function handleDragEnd(result) {
     const { source, destination } = result
     if (!destination) return
@@ -105,6 +165,10 @@ export default function BoardPage() {
       })
     }
     await batch.commit()
+
+    if (sourceListId !== destListId) {
+      await applyAutomations('moved', destListId, moved.id)
+    }
   }
 
   const isOwner = board.ownerId === user.uid
@@ -120,9 +184,17 @@ export default function BoardPage() {
       <Navbar
         boardTitle={board.title}
         rightSlot={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              className="text-input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Suchen …"
+              style={{ width: 160, padding: '7px 10px' }}
+            />
             <button className="btn-ghost" onClick={() => setShowBackground(true)}>Hintergrund</button>
             <button className="btn-ghost" onClick={() => setShowLabels(true)}>Kategorien</button>
+            <button className="btn-ghost" onClick={() => setShowAutomations(true)}>Automationen</button>
             <button className="btn-ghost" onClick={() => setShowMembers(true)}>
               Mitglieder ({board.memberEmails?.length || 1})
             </button>
@@ -139,12 +211,13 @@ export default function BoardPage() {
                 list={list}
                 cards={(cardsByList[list.id] || []).slice().sort((a, b) => a.order - b.order)}
                 labels={board.labels || []}
-                onAddCard={(title) => createCard(boardId, list.id, title, (cardsByList[list.id] || []).length)}
+                search={search}
+                onAddCard={(title) => handleAddCard(list.id, title)}
                 onCardClick={(card) => setActiveCard(card)}
                 onDeleteList={() => confirm('Liste und alle Karten darin löschen?') && deleteList(boardId, list.id)}
                 onRenameList={(title) => updateList(boardId, list.id, { title })}
                 onRecolorList={(color) => updateList(boardId, list.id, { color })}
-                onQuickUpdateCard={(cardId, data) => updateCard(boardId, cardId, data)}
+                onQuickUpdateCard={handleCardUpdate}
                 onDeleteCard={handleDeleteCard}
               />
             ))}
@@ -178,16 +251,19 @@ export default function BoardPage() {
         <CardModal
           card={activeCard}
           labels={board.labels || []}
+          currentUserEmail={user.email}
           onClose={() => setActiveCard(null)}
-          onSave={(data) => updateCard(boardId, activeCard.id, data)}
+          onSave={(data) => handleCardUpdate(activeCard.id, data)}
           onDelete={async () => { await deleteCard(boardId, activeCard.id); setActiveCard(null) }}
           onManageLabels={() => setShowLabels(true)}
+          onAddComment={(text) => addComment(boardId, activeCard.id, text, user.email)}
         />
       )}
 
       {showMembers && <MembersModal board={board} isOwner={isOwner} onClose={() => setShowMembers(false)} />}
       {showLabels && <ManageLabelsModal board={board} onClose={() => setShowLabels(false)} />}
       {showBackground && <BackgroundModal board={board} onClose={() => setShowBackground(false)} />}
+      {showAutomations && <AutomationsModal board={board} lists={lists} onClose={() => setShowAutomations(false)} />}
     </div>
   )
 }

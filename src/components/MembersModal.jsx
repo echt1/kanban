@@ -20,23 +20,17 @@ export default function MembersModal({ board, isOwner, onClose }) {
         <h2>Mitglieder</h2>
 
         {isOwner ? (
-          <>
-            <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              <input
-                type="email"
-                required
-                className="text-input"
-                placeholder="E-Mail-Adresse einladen"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <button className="btn" disabled={busy}>Einladen</button>
-            </form>
-            <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
-              Die Person braucht ein Konto mit genau dieser E-Mail-Adresse (Google oder E-Mail/Passwort),
-              dann sieht sie das Board automatisch nach dem Einloggen.
-            </p>
-          </>
+          <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            <input
+              type="email"
+              required
+              className="text-input"
+              placeholder="E-Mail-Adresse einladen"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <button className="btn" disabled={busy}>Einladen</button>
+          </form>
         ) : (
           <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
             Nur der Eigentümer dieses Boards kann Mitglieder einladen oder entfernen.

@@ -6,7 +6,7 @@ import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, useContextMenu } fro
 const LIST_COLORS = [null, '#6b8f71', '#d4a017', '#c1502e', '#4c6b8a', '#6e4b69', '#8a9a5b']
 
 export default function List({
-  list, cards, labels, onAddCard, onCardClick, onDeleteList, onRenameList, onRecolorList,
+  list, cards, labels, search, onAddCard, onCardClick, onDeleteList, onRenameList, onRecolorList,
   onQuickUpdateCard, onDeleteCard,
 }) {
   const [adding, setAdding] = useState(false)
@@ -66,17 +66,22 @@ export default function List({
               background: snapshot.isDraggingOver ? 'rgba(212,160,23,0.08)' : 'transparent',
             }}
           >
-            {cards.map((card, i) => (
-              <CardItem
-                key={card.id}
-                card={card}
-                index={i}
-                labels={labels}
-                onClick={() => onCardClick(card)}
-                onQuickUpdate={(data) => onQuickUpdateCard(card.id, data)}
-                onDelete={() => onDeleteCard(card.id)}
-              />
-            ))}
+            {cards.map((card, i) => {
+              const q = (search || '').trim().toLowerCase()
+              const matches = !q || card.title.toLowerCase().includes(q) || (card.description || '').toLowerCase().includes(q)
+              return (
+                <CardItem
+                  key={card.id}
+                  card={card}
+                  index={i}
+                  labels={labels}
+                  dimmed={!matches}
+                  onClick={() => onCardClick(card)}
+                  onQuickUpdate={(data) => onQuickUpdateCard(card.id, data)}
+                  onDelete={() => onDeleteCard(card.id)}
+                />
+              )
+            })}
             {provided.placeholder}
           </div>
         )}
