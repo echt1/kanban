@@ -48,12 +48,20 @@ export default function CardModal({ card, labels, onClose, onSave, onDelete, onM
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          style={styles.titleInput}
-          placeholder="Titel"
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <input
+            type="checkbox"
+            checked={!!card.done}
+            onChange={(e) => onSave({ title, description, dueDate: dueDate || null, labelIds, checklist, done: e.target.checked })}
+            style={{ width: 18, height: 18, flexShrink: 0 }}
+          />
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ ...styles.titleInput, textDecoration: card.done ? 'line-through' : 'none', flex: 1 }}
+            placeholder="Titel"
+          />
+        </div>
 
         <label className="field-label" style={{ marginTop: 18 }}>Fällig am</label>
         <input

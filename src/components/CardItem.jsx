@@ -27,6 +27,11 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
     onQuickUpdate({ labelIds: next })
   }
 
+  function toggleDone(e) {
+    e.stopPropagation()
+    onQuickUpdate({ done: !card.done })
+  }
+
   return (
     <>
       <Draggable draggableId={card.id} index={index}>
@@ -39,9 +44,10 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
             onContextMenu={open}
             style={{
               ...styles.card,
+              opacity: card.done ? 0.6 : 1,
               boxShadow: snapshot.isDragging
-                ? '0 12px 24px rgba(0,0,0,0.4)'
-                : '0 2px 4px rgba(0,0,0,0.25)',
+                ? '0 12px 24px rgba(0,0,0,0.45)'
+                : '0 1px 3px rgba(0,0,0,0.3)',
               ...provided.draggableProps.style,
             }}
           >
@@ -52,12 +58,24 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
                 ))}
               </div>
             )}
-            <p style={styles.title}>{card.title}</p>
+            <div style={styles.titleRow}>
+              <input
+                type="checkbox"
+                checked={!!card.done}
+                onChange={toggleDone}
+                onClick={(e) => e.stopPropagation()}
+                style={styles.doneCheckbox}
+                title="Als erledigt markieren"
+              />
+              <p style={{ ...styles.title, textDecoration: card.done ? 'line-through' : 'none' }}>
+                {card.title}
+              </p>
+            </div>
             <div style={styles.metaRow}>
               {due && (
                 <span style={{
                   ...styles.due,
-                  color: isOverdue ? 'var(--accent-clay)' : isSoon ? '#a3760d' : 'var(--muted)',
+                  color: isOverdue ? 'var(--accent-clay)' : isSoon ? 'var(--accent-amber)' : 'var(--muted)',
                 }}>
                   {due.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
                 </span>
@@ -74,6 +92,10 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
 
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} onClose={close}>
+          <CtxItem onClick={() => { onQuickUpdate({ done: !card.done }); close() }} icon={card.done ? '↺' : '✓'}>
+            {card.done ? 'Als offen markieren' : 'Als erledigt markieren'}
+          </CtxItem>
+          <CtxDivider />
           <CtxSectionLabel>Fällig</CtxSectionLabel>
           <CtxItem onClick={() => { onQuickUpdate({ dueDate: isoInDays(0) }); close() }}>Heute</CtxItem>
           <CtxItem onClick={() => { onQuickUpdate({ dueDate: isoInDays(1) }); close() }}>Morgen</CtxItem>
@@ -107,7 +129,8 @@ export default function CardItem({ card, index, labels, onClick, onQuickUpdate, 
 
 const styles = {
   card: {
-    background: 'var(--paper)', color: 'var(--ink-text)', borderRadius: 3,
+    background: 'var(--card-bg)', color: 'var(--card-text)', borderRadius: 6,
+    border: '1px solid var(--card-border)',
     padding: '10px 12px 12px', marginBottom: 8, cursor: 'pointer',
     fontSize: 14, position: 'relative',
   },
@@ -116,8 +139,10 @@ const styles = {
     fontSize: 10, fontWeight: 700, color: '#fff', padding: '2px 6px', borderRadius: 3,
     textTransform: 'uppercase', letterSpacing: '0.03em',
   },
-  title: { margin: 0, lineHeight: 1.35 },
-  metaRow: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 },
+  titleRow: { display: 'flex', alignItems: 'flex-start', gap: 8 },
+  doneCheckbox: { width: 15, height: 15, marginTop: 2, flexShrink: 0, cursor: 'pointer' },
+  title: { margin: 0, lineHeight: 1.35, flex: 1 },
+  metaRow: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, paddingLeft: 23 },
   due: { fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500 },
-  checklistBadge: { fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500, color: '#5c5d58' },
+  checklistBadge: { fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)' },
 }

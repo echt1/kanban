@@ -28,7 +28,14 @@ export default function List({
   }
 
   return (
-    <div style={{ ...styles.list, borderTop: `3px solid ${list.color || 'transparent'}` }}>
+    <div
+      style={{
+        ...styles.list,
+        background: list.color
+          ? `color-mix(in srgb, ${list.color} 24%, var(--board-felt))`
+          : 'rgba(128,128,128,0.08)',
+      }}
+    >
       <div style={styles.header} onContextMenu={open}>
         {editingTitle ? (
           <input
@@ -131,8 +138,8 @@ const styles = {
   },
   header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 4px' },
   title: {
-    fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, margin: 0,
-    cursor: 'text', color: 'var(--text-primary)',
+    fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, margin: 0,
+    cursor: 'text', color: 'var(--text-primary)', lineHeight: 1.25,
   },
   menuBtn: { background: 'none', color: 'var(--muted)', fontSize: 16, lineHeight: 1, padding: '0 4px' },
   dropZone: { minHeight: 6, flex: '0 1 auto', overflowY: 'auto', padding: '2px 2px' },

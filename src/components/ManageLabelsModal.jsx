@@ -10,6 +10,7 @@ export default function ManageLabelsModal({ board, onClose }) {
   const [labels, setLabels] = useState(board.labels || [])
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState(PALETTE[0])
+  const [openPickerId, setOpenPickerId] = useState(null)
 
   async function persist(next) {
     setLabels(next)
@@ -30,6 +31,7 @@ export default function ManageLabelsModal({ board, onClose }) {
 
   function recolorLabel(id, color) {
     persist(labels.map((l) => (l.id === id ? { ...l, color } : l)))
+    setOpenPickerId(null)
   }
 
   function deleteLabel(id) {
@@ -41,22 +43,39 @@ export default function ManageLabelsModal({ board, onClose }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Kategorien verwalten</h2>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 22 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 22 }}>
           {labels.map((l) => (
-            <div key={l.id} style={styles.row}>
-              <input
-                type="color"
-                value={l.color}
-                onChange={(e) => recolorLabel(l.id, e.target.value)}
-                style={styles.colorInput}
-              />
-              <input
-                className="text-input"
-                value={l.name}
-                onChange={(e) => renameLabel(l.id, e.target.value)}
-                style={{ flex: 1 }}
-              />
-              <button style={styles.deleteBtn} onClick={() => deleteLabel(l.id)}>×</button>
+            <div key={l.id}>
+              <div style={styles.row}>
+                <button
+                  type="button"
+                  onClick={() => setOpenPickerId(openPickerId === l.id ? null : l.id)}
+                  style={{ ...styles.swatchBtn, background: l.color }}
+                  title="Farbe ändern"
+                />
+                <input
+                  className="text-input"
+                  value={l.name}
+                  onChange={(e) => renameLabel(l.id, e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button style={styles.deleteBtn} onClick={() => deleteLabel(l.id)}>×</button>
+              </div>
+              {openPickerId === l.id && (
+                <div style={styles.paletteRow}>
+                  {PALETTE.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => recolorLabel(l.id, c)}
+                      style={{
+                        width: 22, height: 22, borderRadius: 5, background: c,
+                        border: l.color === c ? '2px solid var(--text-primary)' : '2px solid transparent',
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {labels.length === 0 && (
@@ -100,6 +119,7 @@ export default function ManageLabelsModal({ board, onClose }) {
 
 const styles = {
   row: { display: 'flex', alignItems: 'center', gap: 8 },
-  colorInput: { width: 32, height: 32, padding: 0, border: 'none', borderRadius: 6, background: 'none', cursor: 'pointer' },
+  swatchBtn: { width: 32, height: 32, borderRadius: 6, border: 'none', flexShrink: 0, cursor: 'pointer' },
   deleteBtn: { background: 'none', color: 'var(--muted)', fontSize: 18, padding: '0 6px' },
+  paletteRow: { display: 'flex', gap: 6, padding: '6px 0 4px 40px', flexWrap: 'wrap' },
 }
