@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import SettingsModal from './SettingsModal'
+import IconButton from './IconButton'
 
 export default function Navbar({ boardTitle, centerSlot, icons, boardSettingsSection }) {
   const { user, logout } = useAuth()
@@ -14,7 +15,7 @@ export default function Navbar({ boardTitle, centerSlot, icons, boardSettingsSec
       <div style={styles.left}>
         <Link to="/" style={styles.brand}>
           <span style={styles.pin} />
-          Board
+          Kanban
         </Link>
         {boardTitle && <span style={styles.crumb}>/ {boardTitle}</span>}
       </div>
@@ -23,12 +24,8 @@ export default function Navbar({ boardTitle, centerSlot, icons, boardSettingsSec
 
       <div style={styles.right}>
         {icons}
-        <button className="icon-btn" onClick={toggleTheme} title="Theme wechseln">
-          {theme === 'dark' ? '☾' : '☀'}
-        </button>
-        <button className="icon-btn" onClick={() => setShowSettings(true)} title="Einstellungen">
-          ⚙
-        </button>
+        <IconButton icon={theme === 'dark' ? 'theme-dark' : 'theme-light'} emoji={theme === 'dark' ? '☾' : '☀'} title="Theme wechseln" onClick={toggleTheme} />
+        <IconButton icon="settings" emoji="⚙" title="Einstellungen" onClick={() => setShowSettings(true)} />
       </div>
 
       {showSettings && (

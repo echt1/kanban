@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Draggable } from '@hello-pangea/dnd'
 import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, useContextMenu } from './ContextMenu'
+import { renderMarkdownLite } from '../lib/markdown'
 
 function isoInDays(days) {
   const d = new Date()
@@ -51,7 +52,7 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
   }
 
   const coverStyle = card.cover?.type === 'color' && card.cover.value
-    ? { background: card.cover.value, height: 10 }
+    ? { background: card.cover.value, height: 35 }
     : card.cover?.type === 'image' && card.cover.value
       ? { backgroundImage: `url(${card.cover.value})`, backgroundSize: 'cover', backgroundPosition: 'center', height: 64 }
       : null
@@ -87,7 +88,11 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
                 </div>
               )}
               <div style={styles.titleRow}>
-                <label style={styles.checkboxHit} onClick={(e) => e.stopPropagation()}>
+                <label
+                  className={`card-check-wrap${card.done ? ' always' : ''}`}
+                  style={styles.checkboxHit}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <input
                     type="checkbox"
                     checked={!!card.done}
@@ -128,9 +133,14 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
               </div>
 
               {card.description && (
-                <p style={styles.descPreview}>
-                  {card.description.length > 80 ? card.description.slice(0, 80) + '…' : card.description}
-                </p>
+                <p
+                  style={styles.descPreview}
+                  dangerouslySetInnerHTML={{
+                    __html: renderMarkdownLite(
+                      card.description.length > 90 ? card.description.slice(0, 90) + '…' : card.description
+                    ),
+                  }}
+                />
               )}
 
               {card.link && (
@@ -218,11 +228,10 @@ const styles = {
   },
   titleRow: { display: 'flex', alignItems: 'flex-start', gap: 6 },
   checkboxHit: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: 7, margin: -7, cursor: 'pointer', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
   },
   doneCheckbox: { width: 15, height: 15, cursor: 'pointer', display: 'block' },
-  title: { margin: 0, lineHeight: 1.35, flex: 1 },
+  title: { margin: 0, lineHeight: 1.35, flex: 1, overflowWrap: 'anywhere', wordBreak: 'break-word' },
   editBtn: {
     background: 'none', color: 'var(--muted)', fontSize: 12, padding: '2px 4px',
     flexShrink: 0, opacity: 0, transition: 'opacity 0.1s ease',

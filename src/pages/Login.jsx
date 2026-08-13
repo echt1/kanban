@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword,
@@ -15,6 +15,8 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => { document.title = 'Log In – Kanban' }, [])
 
   if (!loading && user) return <Navigate to="/" replace />
 

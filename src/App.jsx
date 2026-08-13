@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import BoardPage from './pages/BoardPage'
 import CalendarPage from './pages/CalendarPage'
+import ViewBoardPage from './pages/ViewBoardPage'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -28,6 +29,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/view/:boardId" element={<ViewBoardPage />} />
       <Route path="/" element={<Protected><Dashboard /></Protected>} />
       <Route path="/calendar" element={<Protected><CalendarPage /></Protected>} />
       <Route path="/board/:boardId" element={<Protected><BoardPage /></Protected>} />

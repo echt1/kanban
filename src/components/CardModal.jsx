@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import ColorGrid from './ColorGrid'
+import { renderMarkdownLite } from '../lib/markdown'
 
 function googleCalendarUrl(title, isoDate) {
   const d = isoDate.replace(/-/g, '')
@@ -28,6 +29,7 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
   const [showCoverImage, setShowCoverImage] = useState(false)
   const [coverImageDraft, setCoverImageDraft] = useState(card.cover?.type === 'image' ? card.cover.value : '')
   const [commentText, setCommentText] = useState('')
+  const [descPreview, setDescPreview] = useState(false)
   const saveTimeout = useRef(null)
 
   useEffect(() => {
@@ -218,15 +220,27 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
             ))}
           </div>
 
-          <label className="field-label">Beschreibung</label>
-          <textarea
-            className="text-input"
-            rows={4}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Details, Notizen …"
-            style={{ resize: 'vertical', marginBottom: 20 }}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label className="field-label" style={{ marginBottom: 8 }}>Beschreibung</label>
+            <button type="button" style={styles.linkBtn} onClick={() => setDescPreview((s) => !s)}>
+              {descPreview ? 'bearbeiten' : 'Vorschau (Markdown)'}
+            </button>
+          </div>
+          {descPreview ? (
+            <div
+              style={{ ...styles.descPreviewBox }}
+              dangerouslySetInnerHTML={{ __html: renderMarkdownLite(description) || '<span style="color:var(--muted)">Keine Beschreibung.</span>' }}
+            />
+          ) : (
+            <textarea
+              className="text-input"
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Details, Notizen … (**fett**, *kursiv*, `code`, [Link](https://…), - Listenpunkt)"
+              style={{ resize: 'vertical', marginBottom: 20 }}
+            />
+          )}
 
           <label className="field-label" style={{ marginBottom: 8 }}>
             Checkliste {checklist.length > 0 && `(${doneCount}/${checklist.length})`}
@@ -324,4 +338,8 @@ const styles = {
   deleteItemBtn: { background: 'none', color: 'var(--muted)', fontSize: 16, padding: '0 4px', flexShrink: 0 },
   swatch: { width: 26, height: 26, borderRadius: 6, cursor: 'pointer' },
   commentRow: { background: 'rgba(128,128,128,0.1)', borderRadius: 6, padding: '8px 10px' },
+  descPreviewBox: {
+    background: 'rgba(128,128,128,0.08)', border: '1px solid var(--line)', borderRadius: 6,
+    padding: '10px 12px', fontSize: 14, lineHeight: 1.5, marginBottom: 20, minHeight: 60,
+  },
 }

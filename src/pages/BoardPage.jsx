@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import {
   subscribeLists, subscribeCards, createList, updateList, deleteList,
   createCard, createCardFull, updateCard, deleteCard, ensureMembership, addComment,
-  updateBoard, deleteBoard,
+  updateBoard, deleteBoard, upsertPresence, subscribePresence,
 } from '../lib/firestore'
 import Navbar from '../components/Navbar'
 import List from '../components/List'
@@ -16,6 +16,8 @@ import MembersModal from '../components/MembersModal'
 import ManageLabelsModal from '../components/ManageLabelsModal'
 import BackgroundModal from '../components/BackgroundModal'
 import AutomationsModal from '../components/AutomationsModal'
+import IconButton from '../components/IconButton'
+import AvatarBubble from '../components/AvatarBubble'
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -33,6 +35,14 @@ export default function BoardPage() {
   const [newListTitle, setNewListTitle] = useState('')
   const [search, setSearch] = useState('')
   const [boardTitleDraft, setBoardTitleDraft] = useState('')
+  const [presence, setPresence] = useState([])
+
+  useEffect(() => {
+    upsertPresence(boardId, user.uid, user.email, user.photoURL)
+    const interval = setInterval(() => upsertPresence(boardId, user.uid, user.email, user.photoURL), 20000)
+    const unsubPresence = subscribePresence(boardId, setPresence)
+    return () => { clearInterval(interval); unsubPresence() }
+  }, [boardId, user.uid, user.email, user.photoURL])
 
   useEffect(() => {
     if (board) setBoardTitleDraft(board.title)
@@ -59,7 +69,7 @@ export default function BoardPage() {
 
   useEffect(() => {
     if (board?.title) document.title = `${board.title} – Kanban`
-    return () => { document.title = 'Board – Kanban' }
+    return () => { document.title = 'Kanban' }
   }, [board?.title])
 
   const cardsByList = useMemo(() => {
@@ -206,9 +216,14 @@ export default function BoardPage() {
         }
         icons={
           <>
-            <button className="icon-btn" onClick={() => setShowLabels(true)} title="Kategorien">🏷</button>
-            <button className="icon-btn" onClick={() => setShowAutomations(true)} title="Automationen">⚡</button>
-            <button className="icon-btn" onClick={() => setShowMembers(true)} title="Mitglieder">👥</button>
+            <div style={{ display: 'flex', alignItems: 'center', marginLeft: 8, marginRight: 4 }}>
+              {presence
+                .filter((p) => Date.now() - p.lastSeen < 45000)
+                .map((p) => <AvatarBubble key={p.id} email={p.email} photoURL={p.photoURL} />)}
+            </div>
+            <IconButton icon="labels" emoji="🏷" title="Kategorien" onClick={() => setShowLabels(true)} />
+            <IconButton icon="automations" emoji="⚡" title="Automationen" onClick={() => setShowAutomations(true)} />
+            <IconButton icon="members" emoji="👥" title="Mitglieder" onClick={() => setShowMembers(true)} />
           </>
         }
         boardSettingsSection={
@@ -226,6 +241,36 @@ export default function BoardPage() {
             <button className="btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowBackground(true)}>
               Hintergrund ändern
             </button>
+
+            <div>
+              <label className="field-label">Nur-Lese-Freigabe</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!board.public}
+                  onChange={(e) => updateBoard(boardId, { public: e.target.checked })}
+                />
+                Board per Link ansehbar machen (ohne Login, ohne Bearbeitungsrechte)
+              </label>
+              {board.public && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input
+                    className="text-input"
+                    readOnly
+                    value={`${window.location.origin}${window.location.pathname}#/view/${boardId}`}
+                    onClick={(e) => e.target.select()}
+                    style={{ fontSize: 12 }}
+                  />
+                  <button
+                    className="btn-ghost"
+                    style={{ fontSize: 12, flexShrink: 0 }}
+                    onClick={() => navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}#/view/${boardId}`)}
+                  >
+                    Kopieren
+                  </button>
+                </div>
+              )}
+            </div>
             {isOwner && (
               <button
                 className="btn-danger"

@@ -1,5 +1,5 @@
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
+  collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot,
   query, orderBy, where, serverTimestamp, arrayUnion, arrayRemove, getDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -159,5 +159,19 @@ export async function addComment(boardId, cardId, text, authorEmail) {
   const comment = { id: crypto.randomUUID(), text, authorEmail, createdAt: Date.now() }
   return updateDoc(doc(db, 'boards', boardId, 'cards', cardId), {
     comments: arrayUnion(comment),
+  })
+}
+
+/* ---------- Presence (wer schaut sich das Board gerade an) ---------- */
+
+export async function upsertPresence(boardId, uid, email, photoURL) {
+  return setDoc(doc(db, 'boards', boardId, 'presence', uid), {
+    email, photoURL: photoURL || null, lastSeen: Date.now(),
+  })
+}
+
+export function subscribePresence(boardId, callback) {
+  return onSnapshot(collection(db, 'boards', boardId, 'presence'), (snap) => {
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
   })
 }
