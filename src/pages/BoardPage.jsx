@@ -39,9 +39,19 @@ export default function BoardPage() {
 
   useEffect(() => {
     upsertPresence(boardId, user.uid, user.email, user.photoURL)
-    const interval = setInterval(() => upsertPresence(boardId, user.uid, user.email, user.photoURL), 20000)
+    const interval = setInterval(() => upsertPresence(boardId, user.uid, user.email, user.photoURL), 15000)
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        upsertPresence(boardId, user.uid, user.email, user.photoURL)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
     const unsubPresence = subscribePresence(boardId, setPresence)
-    return () => { clearInterval(interval); unsubPresence() }
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      unsubPresence()
+    }
   }, [boardId, user.uid, user.email, user.photoURL])
 
   useEffect(() => {
@@ -218,7 +228,7 @@ export default function BoardPage() {
           <>
             <div style={{ display: 'flex', alignItems: 'center', marginLeft: 8, marginRight: 4 }}>
               {presence
-                .filter((p) => Date.now() - p.lastSeen < 45000)
+                .filter((p) => Date.now() - p.lastSeen < 60000)
                 .map((p) => <AvatarBubble key={p.id} email={p.email} photoURL={p.photoURL} />)}
             </div>
             <IconButton icon="labels" emoji="🏷" title="Kategorien" onClick={() => setShowLabels(true)} />
