@@ -237,7 +237,7 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Details, Notizen … (**fett**, *kursiv*, `code`, [Link](https://…), - Listenpunkt)"
+              placeholder="Details, Notizen …"
               style={{ resize: 'vertical', marginBottom: 20 }}
             />
           )}

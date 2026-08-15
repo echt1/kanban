@@ -117,9 +117,10 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
                   />
                 ) : (
                   <>
-                    <p style={{ ...styles.title, textDecoration: card.done ? 'line-through' : 'none' }}>
-                      {card.title}
-                    </p>
+                    <p
+                      style={{ ...styles.title, textDecoration: card.done ? 'line-through' : 'none' }}
+                      dangerouslySetInnerHTML={{ __html: renderMarkdownLite(card.title) }}
+                    />
                     <button
                       style={styles.editBtn}
                       className="card-edit-btn"
@@ -226,7 +227,7 @@ const styles = {
     fontSize: 10, fontWeight: 700, color: '#fff', padding: '2px 6px', borderRadius: 3,
     textTransform: 'uppercase', letterSpacing: '0.03em',
   },
-  titleRow: { display: 'flex', alignItems: 'flex-start', gap: 6 },
+  titleRow: { display: 'flex', alignItems: 'center', gap: 6 },
   checkboxHit: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
   },
@@ -237,16 +238,16 @@ const styles = {
     flexShrink: 0, opacity: 0, transition: 'opacity 0.1s ease',
   },
   descPreview: {
-    margin: '4px 0 0 23px', fontSize: 12, color: 'var(--muted)', lineHeight: 1.4,
+    margin: '4px 0 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.4,
     overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
     WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
   },
   linkChip: {
-    display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, marginLeft: 23,
+    display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8,
     fontSize: 12, color: 'var(--muted)', background: 'rgba(128,128,128,0.15)',
     padding: '3px 8px', borderRadius: 4, textDecoration: 'none', maxWidth: '85%',
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
-  metaRow: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, paddingLeft: 23, flexWrap: 'wrap' },
+  metaRow: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' },
   metaTag: { fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)' },
 }
