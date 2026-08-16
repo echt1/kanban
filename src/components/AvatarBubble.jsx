@@ -6,8 +6,9 @@ function colorFor(str) {
   return COLORS[Math.abs(hash) % COLORS.length]
 }
 
-export default function AvatarBubble({ email, photoURL, size = 28 }) {
+export default function AvatarBubble({ email, photoURL, size = 28, overlap = false }) {
   const initial = (email || '?')[0].toUpperCase()
+  const marginLeft = overlap ? -8 : 0
 
   if (photoURL) {
     return (
@@ -17,7 +18,7 @@ export default function AvatarBubble({ email, photoURL, size = 28 }) {
         title={email}
         style={{
           width: size, height: size, borderRadius: '50%', objectFit: 'cover',
-          border: '2px solid var(--bg-surface)', marginLeft: -8,
+          border: '2px solid var(--bg-surface)', marginLeft,
         }}
       />
     )
@@ -30,7 +31,7 @@ export default function AvatarBubble({ email, photoURL, size = 28 }) {
         width: size, height: size, borderRadius: '50%', background: colorFor(email || ''),
         color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: size * 0.42, fontWeight: 700, border: '2px solid var(--bg-surface)',
-        marginLeft: -8, flexShrink: 0,
+        marginLeft, flexShrink: 0,
       }}
     >
       {initial}

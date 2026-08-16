@@ -6,7 +6,7 @@ import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, useContextMenu } fro
 const LIST_COLORS = [null, '#6b8f71', '#d4a017', '#c1502e', '#4c6b8a', '#6e4b69', '#8a9a5b']
 
 export default function List({
-  list, cards, labels, search, onAddCard, onCardClick, onDeleteList, onRenameList, onRecolorList,
+  list, cards, labels, members, search, onAddCard, onCardClick, onDeleteList, onRenameList, onRecolorList,
   onQuickUpdateCard, onDeleteCard,
 }) {
   const [adding, setAdding] = useState(false)
@@ -75,6 +75,7 @@ export default function List({
                   card={card}
                   index={i}
                   labels={labels}
+                  members={members}
                   dimmed={!matches}
                   onClick={() => onCardClick(card)}
                   onQuickUpdate={(data) => onQuickUpdateCard(card.id, data)}

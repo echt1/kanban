@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { updateCard } from '../lib/firestore'
+import Select from './Select'
+import { renderMarkdownLite } from '../lib/markdown'
 
 export default function TableCellModal({
   rowLabel, colLabel, cell, boards, cardsByBoard, onClose, onSave,
@@ -28,21 +30,23 @@ export default function TableCellModal({
   }
 
   const pickBoardCards = (cardsByBoard[pickBoardId] || []).filter((c) => !c.done)
+  const boardOptions = boards.map((b) => ({ value: b.id, label: b.title }))
+  const cardOptions = pickBoardCards.map((c) => ({ value: c.id, label: c.title }))
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
         <h2>{rowLabel} · {colLabel}</h2>
 
         <label className="field-label">Notiz</label>
         <textarea
           className="text-input"
-          rows={2}
+          rows={3}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           onBlur={commitNote}
           placeholder="Optionale Notiz für diese Zelle …"
-          style={{ resize: 'vertical', marginBottom: 20 }}
+          style={{ resize: 'vertical', marginBottom: 20, whiteSpace: 'pre-wrap' }}
         />
 
         <label className="field-label">Verknüpfte Karten</label>
@@ -51,8 +55,10 @@ export default function TableCellModal({
             const board = boards.find((b) => b.id === l.boardId)
             const card = (cardsByBoard[l.boardId] || []).find((c) => c.id === l.cardId)
             if (!board) return null
+            const checklist = card?.checklist || []
+            const doneCount = checklist.filter((i) => i.done).length
             return (
-              <div key={`${l.boardId}-${l.cardId}`} style={styles.linkedRow}>
+              <div key={`${l.boardId}-${l.cardId}`} className="linked-hover" style={styles.linkedRow}>
                 <input
                   type="checkbox"
                   checked={!!card?.done}
@@ -73,6 +79,35 @@ export default function TableCellModal({
                   Zum Board
                 </Link>
                 <button style={styles.removeBtn} onClick={() => removeLink(l.boardId, l.cardId)}>×</button>
+
+                {card && (
+                  <div className="linked-preview">
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{card.title}</div>
+                    {card.description && (
+                      <div
+                        style={{ color: 'var(--muted)', marginBottom: 6, lineHeight: 1.4 }}
+                        dangerouslySetInnerHTML={{ __html: renderMarkdownLite(card.description.slice(0, 160)) }}
+                      />
+                    )}
+                    {card.dueDate && (
+                      <div style={{ color: 'var(--muted)', marginBottom: 4 }}>
+                        Fällig: {new Date(card.dueDate).toLocaleDateString('de-DE')}
+                      </div>
+                    )}
+                    {checklist.length > 0 && (
+                      <div style={{ color: 'var(--muted)' }}>Checkliste: {doneCount}/{checklist.length}</div>
+                    )}
+                    {(card.labelIds || []).length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                        {(card.labelIds || []).map((lid) => {
+                          const lbl = board.labels?.find((x) => x.id === lid)
+                          if (!lbl) return null
+                          return <span key={lid} style={{ background: lbl.color, color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 3 }}>{lbl.name}</span>
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -86,18 +121,13 @@ export default function TableCellModal({
           <p style={{ fontSize: 13, color: 'var(--muted)' }}>Du bist noch in keinem Board Mitglied.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-            <select className="text-input" value={pickBoardId} onChange={(e) => setPickBoardId(e.target.value)}>
-              {boards.map((b) => <option key={b.id} value={b.id}>{b.title}</option>)}
-            </select>
-            <select
-              className="text-input"
+            <Select value={pickBoardId} onChange={setPickBoardId} options={boardOptions} placeholder="Board wählen" />
+            <Select
               value=""
-              onChange={(e) => addLink(e.target.value)}
-            >
-              <option value="" disabled>Offene Karte auswählen …</option>
-              {pickBoardCards.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-              {pickBoardCards.length === 0 && <option value="" disabled>Keine offenen Karten in diesem Board</option>}
-            </select>
+              onChange={addLink}
+              options={cardOptions}
+              placeholder={cardOptions.length ? 'Offene Karte auswählen …' : 'Keine offenen Karten in diesem Board'}
+            />
           </div>
         )}
 
@@ -112,7 +142,7 @@ export default function TableCellModal({
 const styles = {
   linkedRow: {
     display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(128,128,128,0.1)',
-    padding: '8px 10px', borderRadius: 6,
+    padding: '8px 10px', borderRadius: 6, position: 'relative',
   },
   removeBtn: { background: 'none', color: 'var(--muted)', fontSize: 16, padding: '0 4px', flexShrink: 0 },
 }

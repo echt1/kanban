@@ -15,17 +15,18 @@ export default function CreateBoardModal({ onClose, onCreate }) {
   const [color, setColor] = useState(COLORS[0])
   const [template, setTemplate] = useState('blank')
 
-  function submit(e) {
+  function submit(e, bulkMode) {
     e.preventDefault()
     if (!title.trim()) return
-    onCreate(title.trim(), color, TEMPLATES[template].lists)
+    onCreate(title.trim(), color, TEMPLATES[template].lists, bulkMode)
+    if (bulkMode) setTitle('')
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Neues Board</h2>
-        <form onSubmit={submit}>
+        <form onSubmit={(e) => submit(e, false)}>
           <label className="field-label">Titel</label>
           <input
             className="text-input"
@@ -66,9 +67,10 @@ export default function CreateBoardModal({ onClose, onCreate }) {
               </label>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Shift+Klick = weitere erstellen</span>
             <button type="button" className="btn-ghost" onClick={onClose}>Abbrechen</button>
-            <button type="submit" className="btn">Erstellen</button>
+            <button type="button" className="btn" onClick={(e) => submit(e, e.shiftKey)}>Erstellen</button>
           </div>
         </form>
       </div>

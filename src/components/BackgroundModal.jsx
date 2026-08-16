@@ -1,24 +1,25 @@
 import { useState } from 'react'
-import { updateBoard } from '../lib/firestore'
 
 const PALETTE = [
   null, '#26272b', '#2e2320', '#20262b', '#1f2a20', '#2b2436', '#3a2222', '#22303a',
 ]
 
-export default function BackgroundModal({ board, onClose }) {
-  const bg = board.background || { type: 'color', value: null }
+// Generisch: funktioniert für Board- UND Kalender-Hintergrund, entkoppelt
+// von Firestore-Zugriff. Der Aufrufer übergibt einfach onSave.
+export default function BackgroundModal({ value, onSave, onClose }) {
+  const bg = value || { type: 'color', value: null }
   const [type, setType] = useState(bg.type || 'color')
   const [color, setColor] = useState(bg.type === 'color' ? bg.value : null)
   const [imageUrl, setImageUrl] = useState(bg.type === 'image' ? bg.value : '')
 
-  async function save() {
-    const value = type === 'color' ? color : imageUrl.trim()
-    await updateBoard(board.id, { background: { type, value: value || null } })
+  function save() {
+    const v = type === 'color' ? color : imageUrl.trim()
+    onSave({ type, value: v || null })
     onClose()
   }
 
-  async function reset() {
-    await updateBoard(board.id, { background: null })
+  function reset() {
+    onSave(null)
     onClose()
   }
 
@@ -71,7 +72,7 @@ export default function BackgroundModal({ board, onClose }) {
           </>
         ) : (
           <>
-            <label className="field-label">Bild-URL</label>
+            <label className="field-label">Bild-URL (z.B. ein direkter .png/.jpg-Link)</label>
             <input
               className="text-input"
               value={imageUrl}

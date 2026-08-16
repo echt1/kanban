@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import ColorGrid from './ColorGrid'
+import Select from './Select'
+import ConfirmButton from './ConfirmButton'
 import { renderMarkdownLite } from '../lib/markdown'
+import AvatarBubble from './AvatarBubble'
 
 function googleCalendarUrl(title, isoDate) {
   const d = isoDate.replace(/-/g, '')
@@ -17,11 +20,12 @@ function formatTimestamp(ms) {
   return new Date(ms).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function CardModal({ card, labels, currentUserEmail, onClose, onSave, onDelete, onManageLabels, onAddComment }) {
+export default function CardModal({ card, labels, members, currentUserEmail, onClose, onSave, onDelete, onManageLabels, onAddComment }) {
   const [title, setTitle] = useState(card.title)
   const [description, setDescription] = useState(card.description || '')
   const [dueDate, setDueDate] = useState(card.dueDate || '')
   const [labelIds, setLabelIds] = useState(card.labelIds || [])
+  const [assignees, setAssignees] = useState(card.assignees || [])
   const [checklist, setChecklist] = useState(card.checklist || [])
   const [link, setLink] = useState(card.link || '')
   const [repeat, setRepeat] = useState(card.repeat?.freq || 'none')
@@ -32,20 +36,29 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
   const [descPreview, setDescPreview] = useState(false)
   const saveTimeout = useRef(null)
 
+  function basePayload(extra = {}) {
+    return {
+      title, description, dueDate: dueDate || null, labelIds, assignees, checklist,
+      link: link.trim() || null, repeat: repeat === 'none' ? null : { freq: repeat },
+      ...extra,
+    }
+  }
+
   useEffect(() => {
     clearTimeout(saveTimeout.current)
     saveTimeout.current = setTimeout(() => {
-      onSave({
-        title, description, dueDate: dueDate || null, labelIds, checklist,
-        link: link.trim() || null, repeat: repeat === 'none' ? null : { freq: repeat },
-      })
+      onSave(basePayload())
     }, 500)
     return () => clearTimeout(saveTimeout.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, description, dueDate, labelIds, checklist, link, repeat])
+  }, [title, description, dueDate, labelIds, assignees, checklist, link, repeat])
 
   function toggleLabel(id) {
     setLabelIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  function toggleAssignee(email) {
+    setAssignees((prev) => (prev.includes(email) ? prev.filter((x) => x !== email) : [...prev, email]))
   }
 
   function addChecklistItem(e) {
@@ -64,10 +77,7 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
   }
 
   function setCover(cover) {
-    onSave({
-      title, description, dueDate: dueDate || null, labelIds, checklist,
-      link: link.trim() || null, repeat: repeat === 'none' ? null : { freq: repeat }, cover,
-    })
+    onSave(basePayload({ cover }))
   }
 
   function submitComment(e) {
@@ -75,10 +85,6 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
     if (!commentText.trim()) return
     onAddComment(commentText.trim())
     setCommentText('')
-  }
-
-  function handleDelete() {
-    if (confirm('Karte löschen?')) onDelete()
   }
 
   const doneCount = checklist.filter((i) => i.done).length
@@ -102,11 +108,7 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
               <input
                 type="checkbox"
                 checked={!!card.done}
-                onChange={(e) => onSave({
-                  title, description, dueDate: dueDate || null, labelIds, checklist,
-                  link: link.trim() || null, repeat: repeat === 'none' ? null : { freq: repeat },
-                  done: e.target.checked,
-                })}
+                onChange={(e) => onSave(basePayload({ done: e.target.checked }))}
                 style={{ width: 18, height: 18, display: 'block' }}
               />
             </label>
@@ -169,17 +171,17 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>Wiederholt sich</span>
-            <select
+            <Select
               value={repeat}
-              onChange={(e) => setRepeat(e.target.value)}
-              className="text-input"
-              style={{ width: 'auto', padding: '5px 8px', fontSize: 12 }}
-            >
-              <option value="none">Nie</option>
-              <option value="daily">Täglich</option>
-              <option value="weekly">Wöchentlich</option>
-              <option value="monthly">Monatlich</option>
-            </select>
+              onChange={setRepeat}
+              style={{ width: 'auto', padding: '6px 10px', fontSize: 12 }}
+              options={[
+                { value: 'none', label: 'Nie' },
+                { value: 'daily', label: 'Täglich' },
+                { value: 'weekly', label: 'Wöchentlich' },
+                { value: 'monthly', label: 'Monatlich' },
+              ]}
+            />
             {repeat !== 'none' && !dueDate && (
               <span style={{ fontSize: 11, color: 'var(--accent-amber)' }}>braucht ein Fälligkeitsdatum</span>
             )}
@@ -216,6 +218,27 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
                 }}
               >
                 {l.name}
+              </button>
+            ))}
+          </div>
+
+          <label className="field-label" style={{ marginBottom: 8 }}>Zugewiesen</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+            {(members || []).length === 0 && (
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>Keine weiteren Mitglieder auf diesem Board.</span>
+            )}
+            {(members || []).map((email) => (
+              <button
+                key={email}
+                onClick={() => toggleAssignee(email)}
+                style={{
+                  ...styles.assigneeBtn,
+                  opacity: assignees.includes(email) ? 1 : 0.45,
+                  outline: assignees.includes(email) ? '2px solid var(--text-primary)' : 'none',
+                }}
+              >
+                <AvatarBubble email={email} size={20} />
+                <span>{email}</span>
               </button>
             ))}
           </div>
@@ -308,7 +331,13 @@ export default function CardModal({ card, labels, currentUserEmail, onClose, onS
           </form>
 
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <button className="btn-danger" onClick={handleDelete}>Karte löschen</button>
+            <ConfirmButton
+              className="btn-danger"
+              style={{ padding: '8px 14px', fontSize: 14, fontWeight: 600, borderRadius: 6 }}
+              label="Karte löschen"
+              confirmText="Karte wirklich löschen?"
+              onConfirm={onDelete}
+            />
             <button className="btn-ghost" onClick={onClose}>Schließen</button>
           </div>
         </div>
@@ -326,6 +355,11 @@ const styles = {
   labelBtn: {
     fontSize: 11, fontWeight: 700, color: '#fff', padding: '5px 10px', borderRadius: 4,
     textTransform: 'uppercase', letterSpacing: '0.03em',
+  },
+  assigneeBtn: {
+    display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600,
+    color: 'var(--text-primary)', background: 'rgba(128,128,128,0.12)',
+    padding: '4px 10px 4px 4px', borderRadius: 20,
   },
   linkBtn: { background: 'none', color: 'var(--accent-amber)', fontSize: 12, fontWeight: 600, padding: 0 },
   checklistRow: {

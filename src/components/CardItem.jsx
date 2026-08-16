@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Draggable } from '@hello-pangea/dnd'
 import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, useContextMenu } from './ContextMenu'
 import { renderMarkdownLite } from '../lib/markdown'
+import AvatarBubble from './AvatarBubble'
 
 function isoInDays(days) {
   const d = new Date()
@@ -17,7 +18,7 @@ function hostnameOf(url) {
   }
 }
 
-export default function CardItem({ card, index, labels, dimmed, onClick, onQuickUpdate, onDelete }) {
+export default function CardItem({ card, index, labels, members, dimmed, onClick, onQuickUpdate, onDelete }) {
   const { menu, open, close } = useContextMenu()
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(card.title)
@@ -38,6 +39,12 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
     const has = (card.labelIds || []).includes(id)
     const next = has ? card.labelIds.filter((x) => x !== id) : [...(card.labelIds || []), id]
     onQuickUpdate({ labelIds: next })
+  }
+
+  function toggleAssignee(email) {
+    const has = (card.assignees || []).includes(email)
+    const next = has ? card.assignees.filter((x) => x !== email) : [...(card.assignees || []), email]
+    onQuickUpdate({ assignees: next })
   }
 
   function toggleDone(e) {
@@ -171,6 +178,11 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
                 {commentCount > 0 && (
                   <span style={styles.metaTag}>💬 {commentCount}</span>
                 )}
+                {(card.assignees || []).length > 0 && (
+                  <div style={styles.assigneeRow}>
+                    {card.assignees.map((email) => <AvatarBubble key={email} email={email} size={20} />)}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -200,6 +212,20 @@ export default function CardItem({ card, index, labels, dimmed, onClick, onQuick
                   <span className="ctx-swatch" style={{ background: l.color }} />
                   <span style={{ flex: 1 }}>{l.name}</span>
                   {(card.labelIds || []).includes(l.id) && <span>✓</span>}
+                </div>
+              ))}
+            </>
+          )}
+
+          {(members || []).length > 0 && (
+            <>
+              <CtxDivider />
+              <CtxSectionLabel>Zugewiesen</CtxSectionLabel>
+              {members.map((email) => (
+                <div key={email} className="ctx-label-row" onClick={() => toggleAssignee(email)}>
+                  <AvatarBubble email={email} size={18} />
+                  <span style={{ flex: 1, marginLeft: 4 }}>{email}</span>
+                  {(card.assignees || []).includes(email) && <span>✓</span>}
                 </div>
               ))}
             </>
@@ -250,4 +276,5 @@ const styles = {
   },
   metaRow: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' },
   metaTag: { fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)' },
+  assigneeRow: { display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' },
 }
