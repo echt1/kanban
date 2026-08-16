@@ -175,3 +175,56 @@ export function subscribePresence(boardId, callback) {
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
   })
 }
+
+/* ---------- Tabellen (eigenständiges Feature, verlinkt auf Kanban-Karten) ---------- */
+
+export function subscribeTables(uid, email, callback) {
+  let membersResult = []
+  let emailResult = []
+
+  function emit() {
+    const merged = new Map()
+    for (const t of [...membersResult, ...emailResult]) merged.set(t.id, t)
+    const tables = Array.from(merged.values()).sort((a, b) => {
+      const ta = a.createdAt?.toMillis?.() || 0
+      const tb = b.createdAt?.toMillis?.() || 0
+      return tb - ta
+    })
+    callback(tables)
+  }
+
+  const qByMember = query(collection(db, 'tables'), where('members', 'array-contains', uid))
+  const qByEmail = query(collection(db, 'tables'), where('memberEmails', 'array-contains', email))
+
+  const unsub1 = onSnapshot(qByMember, (snap) => {
+    membersResult = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    emit()
+  })
+  const unsub2 = onSnapshot(qByEmail, (snap) => {
+    emailResult = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    emit()
+  })
+
+  return () => { unsub1(); unsub2() }
+}
+
+export async function createTable(title, uid, email, rows, columns) {
+  return addDoc(collection(db, 'tables'), {
+    title,
+    ownerId: uid,
+    members: [uid],
+    memberEmails: [email],
+    rows: rows || [],
+    columns: columns || [],
+    cells: {},
+    createdAt: serverTimestamp(),
+  })
+}
+
+export async function updateTable(tableId, data) {
+  return updateDoc(doc(db, 'tables', tableId), data)
+}
+
+export async function deleteTable(tableId) {
+  return deleteDoc(doc(db, 'tables', tableId))
+}
