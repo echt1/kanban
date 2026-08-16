@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { subscribeBoards, subscribeCards, updateTable, deleteTable } from '../lib/firestore'
 import Navbar from '../components/Navbar'
 import TableCellModal from '../components/TableCellModal'
+import ConfirmButton from '../components/ConfirmButton'
 
 export default function TableDetailPage() {
   const { tableId } = useParams()
@@ -81,14 +82,12 @@ export default function TableDetailPage() {
   }
 
   async function deleteRow(id) {
-    if (!confirm('Zeile löschen?')) return
     const nextCells = { ...(table.cells || {}) }
     for (const c of cols) delete nextCells[cellKey(id, c.id)]
     await updateTable(tableId, { rows: rows.filter((r) => r.id !== id), cells: nextCells })
   }
 
   async function deleteCol(id) {
-    if (!confirm('Spalte löschen?')) return
     const nextCells = { ...(table.cells || {}) }
     for (const r of rows) delete nextCells[cellKey(r.id, id)]
     await updateTable(tableId, { columns: cols.filter((c) => c.id !== id), cells: nextCells })
@@ -120,13 +119,13 @@ export default function TableDetailPage() {
               />
             </div>
             {isOwner && (
-              <button
+              <ConfirmButton
                 className="btn-danger"
-                style={{ alignSelf: 'flex-start' }}
-                onClick={async () => { if (confirm('Tabelle wirklich löschen?')) { await deleteTable(tableId); window.location.hash = '#/tables' } }}
-              >
-                Tabelle löschen
-              </button>
+                style={{ alignSelf: 'flex-start', padding: '8px 14px', fontSize: 14, fontWeight: 600, borderRadius: 6 }}
+                label="Tabelle löschen"
+                confirmText="Tabelle wirklich löschen? Das kann nicht rückgängig gemacht werden."
+                onConfirm={async () => { await deleteTable(tableId); window.location.hash = '#/tables' }}
+              />
             )}
           </div>
         }
@@ -142,12 +141,17 @@ export default function TableDetailPage() {
                   <th key={c.id} style={styles.colHeader}>
                     <div style={styles.headerInner}>
                       <EditableLabel value={c.label} onCommit={(v) => renameCol(c.id, v)} />
-                      <button style={styles.smallDelete} onClick={() => deleteCol(c.id)}>×</button>
+                      <ConfirmButton
+                        style={styles.smallDelete}
+                        label="×"
+                        confirmText="Spalte samt Inhalten löschen?"
+                        onConfirm={() => deleteCol(c.id)}
+                      />
                     </div>
                   </th>
                 ))}
                 <th style={styles.addHeaderCell}>
-                  <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={addCol}>+ Spalte</button>
+                  <button className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }} onClick={addCol}>+ Spalte</button>
                 </th>
               </tr>
             </thead>
@@ -157,7 +161,12 @@ export default function TableDetailPage() {
                   <th style={styles.rowHeader}>
                     <div style={styles.headerInner}>
                       <EditableLabel value={r.label} onCommit={(v) => renameRow(r.id, v)} />
-                      <button style={styles.smallDelete} onClick={() => deleteRow(r.id)}>×</button>
+                      <ConfirmButton
+                        style={styles.smallDelete}
+                        label="×"
+                        confirmText="Zeile samt Inhalten löschen?"
+                        onConfirm={() => deleteRow(r.id)}
+                      />
                     </div>
                   </th>
                   {cols.map((c) => {
@@ -166,15 +175,12 @@ export default function TableDetailPage() {
                       <td key={c.id} style={styles.cell} onClick={() => setActiveCell({ rowId: r.id, colId: c.id })}>
                         {stats.note && <div style={styles.cellNote}>{stats.note}</div>}
                         {stats.total > 0 && (
-                          <div style={styles.cellBadgeRow}>
-                            <span style={{
-                              ...styles.cellBadge,
-                              background: stats.open > 0 ? 'var(--accent-amber)' : 'var(--accent-sage)',
-                            }}>
-                              {stats.open > 0 ? `${stats.open} offen` : 'erledigt'}
-                            </span>
-                            <span style={styles.cellCount}>{stats.total} Karte{stats.total === 1 ? '' : 'n'}</span>
-                          </div>
+                          <span style={{
+                            ...styles.countBadge,
+                            background: stats.open > 0 ? 'var(--accent-amber)' : 'var(--accent-sage)',
+                          }}>
+                            {stats.total}
+                          </span>
                         )}
                         {stats.total === 0 && !stats.note && <span style={styles.emptyHint}>+</span>}
                       </td>
@@ -185,7 +191,7 @@ export default function TableDetailPage() {
               ))}
               <tr>
                 <th style={styles.addRowCell}>
-                  <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px' }} onClick={addRow}>+ Zeile</button>
+                  <button className="btn-ghost" style={{ fontSize: 13, padding: '6px 12px' }} onClick={addRow}>+ Zeile</button>
                 </th>
                 {cols.map((c) => <td key={c.id} />)}
                 <td />
@@ -224,7 +230,7 @@ function EditableLabel({ value, onCommit }) {
         onClick={(e) => e.stopPropagation()}
         onBlur={() => { setEditing(false); draft.trim() && onCommit(draft.trim()) }}
         onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
-        style={{ fontSize: 13, padding: '3px 6px' }}
+        style={{ fontSize: 15, padding: '4px 7px' }}
       />
     )
   }
@@ -236,32 +242,34 @@ function EditableLabel({ value, onCommit }) {
 }
 
 const styles = {
-  wrap: { flex: 1, overflow: 'auto', padding: '20px 24px', background: 'var(--board-felt)' },
+  wrap: { flex: 1, overflow: 'auto', padding: '28px 32px', background: 'var(--board-felt)' },
   tableScroll: { overflow: 'auto' },
-  table: { borderCollapse: 'separate', borderSpacing: 6 },
-  cornerCell: { width: 140 },
+  table: { borderCollapse: 'separate', borderSpacing: 10 },
+  cornerCell: { width: 190 },
   colHeader: {
-    background: 'var(--bg-surface)', border: '1px solid var(--line)', borderRadius: 6,
-    padding: '8px 10px', minWidth: 150, fontFamily: 'var(--font-display)', fontWeight: 700,
-    fontSize: 14, color: 'var(--text-primary)', textAlign: 'left',
+    background: 'var(--bg-surface)', border: '1px solid var(--line)', borderRadius: 7,
+    padding: '12px 14px', minWidth: 190, fontFamily: 'var(--font-display)', fontWeight: 700,
+    fontSize: 16, color: 'var(--text-primary)', textAlign: 'left',
   },
   rowHeader: {
-    background: 'var(--bg-surface)', border: '1px solid var(--line)', borderRadius: 6,
-    padding: '8px 10px', minWidth: 140, fontFamily: 'var(--font-display)', fontWeight: 700,
-    fontSize: 14, color: 'var(--text-primary)', textAlign: 'left', verticalAlign: 'top',
+    background: 'var(--bg-surface)', border: '1px solid var(--line)', borderRadius: 7,
+    padding: '12px 14px', minWidth: 190, fontFamily: 'var(--font-display)', fontWeight: 700,
+    fontSize: 16, color: 'var(--text-primary)', textAlign: 'left', verticalAlign: 'top',
   },
-  headerInner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
-  smallDelete: { background: 'none', color: 'var(--muted)', fontSize: 14, padding: '0 2px', flexShrink: 0 },
-  addHeaderCell: { minWidth: 110, verticalAlign: 'middle' },
-  addRowCell: { minWidth: 140, textAlign: 'left' },
+  headerInner: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  smallDelete: { background: 'none', color: 'var(--muted)', fontSize: 16, padding: '0 3px', flexShrink: 0 },
+  addHeaderCell: { minWidth: 130, verticalAlign: 'middle' },
+  addRowCell: { minWidth: 190, textAlign: 'left' },
   cell: {
-    background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 6,
-    padding: '10px 12px', minWidth: 150, minHeight: 54, verticalAlign: 'top', cursor: 'pointer',
+    background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 7,
+    padding: '14px 16px', minWidth: 190, minHeight: 74, verticalAlign: 'top', cursor: 'pointer',
     color: 'var(--card-text)',
   },
-  cellNote: { fontSize: 12.5, marginBottom: 6, lineHeight: 1.35, color: 'var(--card-text)' },
-  cellBadgeRow: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  cellBadge: { fontSize: 10, fontWeight: 700, color: '#1a1a1a', padding: '2px 7px', borderRadius: 10, textTransform: 'uppercase' },
-  cellCount: { fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' },
-  emptyHint: { color: 'var(--muted)', fontSize: 14 },
+  cellNote: { fontSize: 13.5, marginBottom: 8, lineHeight: 1.4, color: 'var(--card-text)', whiteSpace: 'pre-wrap' },
+  countBadge: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 22, height: 22, padding: '0 6px', borderRadius: 11,
+    fontSize: 12, fontWeight: 700, color: '#1a1a1a',
+  },
+  emptyHint: { color: 'var(--muted)', fontSize: 15 },
 }

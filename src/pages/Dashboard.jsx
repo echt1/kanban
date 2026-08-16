@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { subscribeBoards, createBoard, deleteBoard, createList } from '../lib/firestore'
 import Navbar from '../components/Navbar'
 import CreateBoardModal from '../components/CreateBoardModal'
+import ConfirmButton from '../components/ConfirmButton'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [boards, setBoards] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
 
@@ -16,20 +18,14 @@ export default function Dashboard() {
     return unsub
   }, [user])
 
-  async function handleCreate(title, color, templateLists) {
+  async function handleCreate(title, color, templateLists, bulkMode) {
     const ref = await createBoard(title, color, user.uid, user.email)
     for (let i = 0; i < (templateLists || []).length; i++) {
       await createList(ref.id, templateLists[i], i)
     }
+    if (bulkMode) return
     setShowCreate(false)
-  }
-
-  async function handleDelete(e, boardId) {
-    e.preventDefault()
-    e.stopPropagation()
-    if (confirm('Board wirklich löschen? Das kann nicht rückgängig gemacht werden.')) {
-      await deleteBoard(boardId)
-    }
+    navigate(`/board/${ref.id}`)
   }
 
   const ownBoards = (boards || []).filter((b) => b.ownerId === user.uid)
@@ -65,7 +61,7 @@ export default function Dashboard() {
           <>
             <h2 style={styles.sectionTitle}>Eigene Boards</h2>
             <div style={{ ...styles.grid, marginBottom: joinedBoards.length > 0 ? 36 : 0 }}>
-              {ownBoards.map((b) => <BoardTile key={b.id} board={b} isOwner onDelete={handleDelete} />)}
+              {ownBoards.map((b) => <BoardTile key={b.id} board={b} isOwner />)}
             </div>
           </>
         )}
@@ -74,7 +70,7 @@ export default function Dashboard() {
           <>
             <h2 style={styles.sectionTitle}>Beigetreten</h2>
             <div style={styles.grid}>
-              {joinedBoards.map((b) => <BoardTile key={b.id} board={b} isOwner={false} onDelete={handleDelete} />)}
+              {joinedBoards.map((b) => <BoardTile key={b.id} board={b} isOwner={false} />)}
             </div>
           </>
         )}
@@ -87,7 +83,7 @@ export default function Dashboard() {
   )
 }
 
-function BoardTile({ board: b, isOwner, onDelete }) {
+function BoardTile({ board: b, isOwner }) {
   const stripStyle = b.background?.type === 'image' && b.background.value
     ? { backgroundImage: `url(${b.background.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { background: b.background?.type === 'color' && b.background.value ? b.background.value : (b.color || '#4c6b8a') }
@@ -103,7 +99,12 @@ function BoardTile({ board: b, isOwner, onDelete }) {
               {(b.members?.length || 1)} Mitglied{(b.members?.length || 1) === 1 ? '' : 'er'}
             </span>
             {isOwner && (
-              <button style={styles.deleteBtn} onClick={(e) => onDelete(e, b.id)}>löschen</button>
+              <ConfirmButton
+                style={styles.deleteBtn}
+                label="löschen"
+                confirmText="Board wirklich löschen? Das kann nicht rückgängig gemacht werden."
+                onConfirm={() => deleteBoard(b.id)}
+              />
             )}
           </div>
         </div>

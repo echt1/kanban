@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { subscribeTables, createTable, deleteTable } from '../lib/firestore'
 import Navbar from '../components/Navbar'
+import ConfirmButton from '../components/ConfirmButton'
 
 const STUNDENPLAN_COLS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].map((label, i) => ({ id: crypto.randomUUID(), label, order: i }))
 const STUNDENPLAN_ROWS = ['1. Stunde', '2. Stunde', '3. Stunde', '4. Stunde', '5. Stunde', '6. Stunde'].map((label, i) => ({ id: crypto.randomUUID(), label, order: i }))
 
 export default function TablesPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [tables, setTables] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [title, setTitle] = useState('')
@@ -19,20 +21,19 @@ export default function TablesPage() {
     return unsub
   }, [user])
 
-  async function handleCreate(e) {
+  async function handleCreate(e, bulkMode) {
     e.preventDefault()
     if (!title.trim()) return
     const rows = template === 'stundenplan' ? STUNDENPLAN_ROWS : [{ id: crypto.randomUUID(), label: 'Zeile 1', order: 0 }]
     const cols = template === 'stundenplan' ? STUNDENPLAN_COLS : [{ id: crypto.randomUUID(), label: 'Spalte 1', order: 0 }]
-    await createTable(title.trim(), user.uid, user.email, rows, cols)
+    const ref = await createTable(title.trim(), user.uid, user.email, rows, cols)
     setTitle('')
-    setShowCreate(false)
-  }
-
-  async function handleDelete(e, tableId) {
-    e.preventDefault()
-    e.stopPropagation()
-    if (confirm('Tabelle wirklich löschen?')) await deleteTable(tableId)
+    if (bulkMode) {
+      // Modal bleibt offen für schnelle Serienerstellung (Shift gehalten)
+    } else {
+      setShowCreate(false)
+      navigate(`/tables/${ref.id}`)
+    }
   }
 
   return (
@@ -68,7 +69,12 @@ export default function TablesPage() {
                 <div style={styles.cardFooter}>
                   <span style={styles.dims}>{(t.rows || []).length} × {(t.columns || []).length}</span>
                   {t.ownerId === user.uid && (
-                    <button style={styles.deleteBtn} onClick={(e) => handleDelete(e, t.id)}>löschen</button>
+                    <ConfirmButton
+                      style={styles.deleteBtn}
+                      label="löschen"
+                      confirmText="Tabelle wirklich löschen?"
+                      onConfirm={() => deleteTable(t.id)}
+                    />
                   )}
                 </div>
               </div>
@@ -81,7 +87,7 @@ export default function TablesPage() {
         <div className="modal-overlay" onClick={() => setShowCreate(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Neue Tabelle</h2>
-            <form onSubmit={handleCreate}>
+            <form onSubmit={(e) => handleCreate(e, false)}>
               <label className="field-label">Titel</label>
               <input
                 className="text-input"
@@ -104,9 +110,16 @@ export default function TablesPage() {
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}> — Mo–Fr × 6 Stunden</span>
                 </label>
               </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>Shift+Klick = weitere erstellen, Modal bleibt offen</span>
                 <button type="button" className="btn-ghost" onClick={() => setShowCreate(false)}>Abbrechen</button>
-                <button type="submit" className="btn">Erstellen</button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={(e) => handleCreate(e, e.shiftKey)}
+                >
+                  Erstellen
+                </button>
               </div>
             </form>
           </div>

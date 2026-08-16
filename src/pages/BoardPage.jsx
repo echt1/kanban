@@ -18,6 +18,7 @@ import BackgroundModal from '../components/BackgroundModal'
 import AutomationsModal from '../components/AutomationsModal'
 import IconButton from '../components/IconButton'
 import AvatarBubble from '../components/AvatarBubble'
+import ConfirmButton from '../components/ConfirmButton'
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -229,7 +230,7 @@ export default function BoardPage() {
             <div style={{ display: 'flex', alignItems: 'center', marginLeft: 8, marginRight: 4 }}>
               {presence
                 .filter((p) => Date.now() - p.lastSeen < 60000)
-                .map((p) => <AvatarBubble key={p.id} email={p.email} photoURL={p.photoURL} />)}
+                .map((p) => <AvatarBubble key={p.id} email={p.email} photoURL={p.photoURL} overlap />)}
             </div>
             <IconButton icon="labels" emoji="🏷" title="Kategorien" onClick={() => setShowLabels(true)} />
             <IconButton icon="automations" emoji="⚡" title="Automationen" onClick={() => setShowAutomations(true)} />
@@ -282,18 +283,13 @@ export default function BoardPage() {
               )}
             </div>
             {isOwner && (
-              <button
+              <ConfirmButton
                 className="btn-danger"
-                style={{ alignSelf: 'flex-start' }}
-                onClick={async () => {
-                  if (confirm('Board wirklich löschen? Das kann nicht rückgängig gemacht werden.')) {
-                    await deleteBoard(boardId)
-                    navigate('/')
-                  }
-                }}
-              >
-                Board löschen
-              </button>
+                style={{ alignSelf: 'flex-start', padding: '8px 14px', fontSize: 14, fontWeight: 600, borderRadius: 6 }}
+                label="Board löschen"
+                confirmText="Board wirklich löschen? Das kann nicht rückgängig gemacht werden."
+                onConfirm={async () => { await deleteBoard(boardId); navigate('/') }}
+              />
             )}
           </div>
         }
@@ -308,6 +304,7 @@ export default function BoardPage() {
                 list={list}
                 cards={(cardsByList[list.id] || []).slice().sort((a, b) => a.order - b.order)}
                 labels={board.labels || []}
+                members={board.memberEmails || []}
                 search={search}
                 onAddCard={(title) => handleAddCard(list.id, title)}
                 onCardClick={(card) => setActiveCard(card)}
@@ -348,6 +345,7 @@ export default function BoardPage() {
         <CardModal
           card={activeCard}
           labels={board.labels || []}
+          members={board.memberEmails || []}
           currentUserEmail={user.email}
           onClose={() => setActiveCard(null)}
           onSave={(data) => handleCardUpdate(activeCard.id, data)}
@@ -359,7 +357,13 @@ export default function BoardPage() {
 
       {showMembers && <MembersModal board={board} isOwner={isOwner} onClose={() => setShowMembers(false)} />}
       {showLabels && <ManageLabelsModal board={board} onClose={() => setShowLabels(false)} />}
-      {showBackground && <BackgroundModal board={board} onClose={() => setShowBackground(false)} />}
+      {showBackground && (
+        <BackgroundModal
+          value={board.background}
+          onSave={(bg) => updateBoard(boardId, { background: bg })}
+          onClose={() => setShowBackground(false)}
+        />
+      )}
       {showAutomations && <AutomationsModal board={board} lists={lists} onClose={() => setShowAutomations(false)} />}
     </div>
   )
