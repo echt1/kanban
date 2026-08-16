@@ -228,3 +228,15 @@ export async function updateTable(tableId, data) {
 export async function deleteTable(tableId) {
   return deleteDoc(doc(db, 'tables', tableId))
 }
+
+/* ---------- Persönliche Einstellungen (z.B. Kalender-Hintergrund) ---------- */
+
+export function subscribeUserSettings(uid, callback) {
+  return onSnapshot(doc(db, 'userSettings', uid), (snap) => {
+    callback(snap.exists() ? snap.data() : {})
+  })
+}
+
+export async function updateUserSettings(uid, data) {
+  return setDoc(doc(db, 'userSettings', uid), data, { merge: true })
+}
