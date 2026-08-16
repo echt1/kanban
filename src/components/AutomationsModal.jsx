@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { updateBoard } from '../lib/firestore'
+import Select from './Select'
+import ConfirmButton from './ConfirmButton'
 
 const TRIGGERS = {
   moved: 'Karte wird in diese Liste verschoben',
@@ -58,6 +60,11 @@ export default function AutomationsModal({ board, lists, onClose }) {
     return { triggerText, actionText }
   }
 
+  const triggerOptions = Object.entries(TRIGGERS).map(([k, v]) => ({ value: k, label: v }))
+  const listOptions = lists.map((l) => ({ value: l.id, label: l.title }))
+  const actionOptions = Object.entries(ACTIONS).map(([k, v]) => ({ value: k, label: v }))
+  const labelOptions = (board.labels || []).map((l) => ({ value: l.id, label: l.name }))
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
@@ -72,7 +79,12 @@ export default function AutomationsModal({ board, lists, onClose }) {
                   <div style={{ fontSize: 13 }}>Wenn: {triggerText}</div>
                   <div style={{ fontSize: 13, color: 'var(--muted)' }}>Dann: {actionText}</div>
                 </div>
-                <button style={styles.deleteBtn} onClick={() => deleteRule(r.id)}>×</button>
+                <ConfirmButton
+                  style={styles.deleteBtn}
+                  label="×"
+                  confirmText="Regel löschen?"
+                  onConfirm={() => deleteRule(r.id)}
+                />
               </div>
             )
           })}
@@ -85,30 +97,23 @@ export default function AutomationsModal({ board, lists, onClose }) {
         <form onSubmit={addRule} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13 }}>Wenn</span>
-            <select className="text-input" style={{ width: 'auto' }} value={trigger} onChange={(e) => setTrigger(e.target.value)}>
-              {Object.entries(TRIGGERS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            <Select value={trigger} onChange={setTrigger} options={triggerOptions} style={{ width: 'auto' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13 }}>Liste</span>
-            <select className="text-input" style={{ width: 'auto' }} value={triggerListId} onChange={(e) => setTriggerListId(e.target.value)}>
-              {lists.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
-            </select>
+            <Select value={triggerListId} onChange={setTriggerListId} options={listOptions} style={{ width: 'auto' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13 }}>Dann</span>
-            <select className="text-input" style={{ width: 'auto' }} value={action} onChange={(e) => setAction(e.target.value)}>
-              {Object.entries(ACTIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
+            <Select value={action} onChange={setAction} options={actionOptions} style={{ width: 'auto' }} />
           </div>
 
           {(action === 'add_label' || action === 'remove_label') && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 13 }}>Kategorie</span>
-              <select className="text-input" style={{ width: 'auto' }} value={actionLabelId} onChange={(e) => setActionLabelId(e.target.value)}>
-                {(board.labels || []).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
-              {(board.labels || []).length === 0 && (
+              {labelOptions.length > 0 ? (
+                <Select value={actionLabelId} onChange={setActionLabelId} options={labelOptions} style={{ width: 'auto' }} />
+              ) : (
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>Erst eine Kategorie anlegen</span>
               )}
             </div>
