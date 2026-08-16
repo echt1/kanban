@@ -45,6 +45,9 @@ export default function Dashboard() {
             <Link to="/calendar" className="btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
               Kalender
             </Link>
+            <Link to="/tables" className="btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+              Tabellen
+            </Link>
             <button className="btn" onClick={() => setShowCreate(true)}>+ Neues Board</button>
           </div>
         </div>
