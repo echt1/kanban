@@ -1,25 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeBoards, subscribeCards, subscribeUserSettings, updateUserSettings } from '../lib/firestore'
+import { subscribeBoards, subscribeCards } from '../lib/firestore'
 import Navbar from '../components/Navbar'
-import BackgroundModal from '../components/BackgroundModal'
-import IconButton from '../components/IconButton'
 
 export default function CalendarPage() {
   const { user } = useAuth()
   const [boards, setBoards] = useState([])
   const [cardsByBoard, setCardsByBoard] = useState({})
-  const [settings, setSettings] = useState({})
-  const [showBackground, setShowBackground] = useState(false)
 
   useEffect(() => {
     const unsub = subscribeBoards(user.uid, user.email, setBoards)
-    return unsub
-  }, [user])
-
-  useEffect(() => {
-    const unsub = subscribeUserSettings(user.uid, setSettings)
     return unsub
   }, [user])
 
@@ -48,18 +39,9 @@ export default function CalendarPage() {
   const thisWeek = allDueCards.filter((c) => c.dueDate > todayStr && c.dueDate <= in7Str).sort((a, b) => a.dueDate.localeCompare(b.dueDate))
   const later = allDueCards.filter((c) => c.dueDate > in7Str).sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 
-  const bg = settings.calendarBackground
-  const pageStyle = bg?.type === 'image' && bg.value
-    ? { minHeight: '100vh', backgroundImage: `url(${bg.value})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
-    : bg?.type === 'color' && bg.value
-      ? { minHeight: '100vh', background: bg.value }
-      : { minHeight: '100vh' }
-
   return (
-    <div style={pageStyle}>
-      <Navbar
-        icons={<IconButton icon="background" emoji="🖼" title="Hintergrund" onClick={() => setShowBackground(true)} />}
-      />
+    <div>
+      <Navbar />
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '40px 24px' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, marginBottom: 6 }}>Fällig</h1>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 32 }}>
@@ -75,14 +57,6 @@ export default function CalendarPage() {
           <p style={{ color: 'var(--muted)' }}>Keine offenen Karten mit Fälligkeitsdatum. Entspann dich.</p>
         )}
       </div>
-
-      {showBackground && (
-        <BackgroundModal
-          value={settings.calendarBackground}
-          onSave={(v) => updateUserSettings(user.uid, { calendarBackground: v })}
-          onClose={() => setShowBackground(false)}
-        />
-      )}
     </div>
   )
 }
