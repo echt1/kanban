@@ -7,6 +7,8 @@ import { subscribeBoards, subscribeCards, updateTable, deleteTable } from '../li
 import Navbar from '../components/Navbar'
 import TableCellModal from '../components/TableCellModal'
 import ConfirmButton from '../components/ConfirmButton'
+import BackgroundModal from '../components/BackgroundModal'
+import IconButton from '../components/IconButton'
 
 export default function TableDetailPage() {
   const { tableId } = useParams()
@@ -15,6 +17,7 @@ export default function TableDetailPage() {
   const [boards, setBoards] = useState([])
   const [cardsByBoard, setCardsByBoard] = useState({})
   const [activeCell, setActiveCell] = useState(null) // { rowId, colId }
+  const [showBackground, setShowBackground] = useState(false)
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'tables', tableId), (snap) => {
@@ -104,10 +107,17 @@ export default function TableDetailPage() {
     await updateTable(tableId, { cells: nextCells })
   }
 
+  const wrapStyle = table.background?.type === 'image' && table.background.value
+    ? { ...styles.wrap, backgroundImage: `url(${table.background.value})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
+    : table.background?.type === 'color' && table.background.value
+      ? { ...styles.wrap, background: table.background.value }
+      : styles.wrap
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar
         boardTitle={table.title}
+        icons={<IconButton icon="background" emoji="🖼" title="Hintergrund" onClick={() => setShowBackground(true)} />}
         boardSettingsSection={
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
@@ -131,7 +141,7 @@ export default function TableDetailPage() {
         }
       />
 
-      <div style={styles.wrap}>
+      <div style={wrapStyle}>
         <div style={styles.tableScroll}>
           <table style={styles.table}>
             <thead>
@@ -171,8 +181,15 @@ export default function TableDetailPage() {
                   </th>
                   {cols.map((c) => {
                     const stats = cellStats(r.id, c.id)
+                    const cell = table.cells?.[cellKey(r.id, c.id)]
+                    const linked = cell?.linkedCards || []
                     return (
-                      <td key={c.id} style={styles.cell} onClick={() => setActiveCell({ rowId: r.id, colId: c.id })}>
+                      <td
+                        key={c.id}
+                        style={styles.cell}
+                        className={linked.length > 0 || stats.note ? 'table-cell-hover' : ''}
+                        onClick={() => setActiveCell({ rowId: r.id, colId: c.id })}
+                      >
                         {stats.note && <div style={styles.cellNote}>{stats.note}</div>}
                         {stats.total > 0 && (
                           <span style={{
@@ -183,6 +200,31 @@ export default function TableDetailPage() {
                           </span>
                         )}
                         {stats.total === 0 && !stats.note && <span style={styles.emptyHint}>+</span>}
+
+                        {(linked.length > 0 || stats.note) && (
+                          <div className="cell-preview">
+                            {stats.note && <div style={{ marginBottom: linked.length > 0 ? 8 : 0, whiteSpace: 'pre-wrap' }}>{stats.note}</div>}
+                            {linked.map((l) => {
+                              const board = boards.find((b) => b.id === l.boardId)
+                              const card = (cardsByBoard[l.boardId] || []).find((cd) => cd.id === l.cardId)
+                              if (!board || !card) return null
+                              return (
+                                <div key={`${l.boardId}-${l.cardId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                  <span style={{
+                                    width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                                    background: card.done ? 'var(--accent-sage)' : 'var(--accent-amber)',
+                                  }} />
+                                  <span style={{
+                                    textDecoration: card.done ? 'line-through' : 'none',
+                                    opacity: card.done ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                  }}>
+                                    {card.title}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
                       </td>
                     )
                   })}
@@ -210,6 +252,14 @@ export default function TableDetailPage() {
           cardsByBoard={cardsByBoard}
           onClose={() => setActiveCell(null)}
           onSave={(data) => saveCell(activeCell.rowId, activeCell.colId, data)}
+        />
+      )}
+
+      {showBackground && (
+        <BackgroundModal
+          value={table.background}
+          onSave={(bg) => updateTable(tableId, { background: bg })}
+          onClose={() => setShowBackground(false)}
         />
       )}
     </div>
@@ -263,7 +313,7 @@ const styles = {
   cell: {
     background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 7,
     padding: '14px 16px', minWidth: 190, minHeight: 74, verticalAlign: 'top', cursor: 'pointer',
-    color: 'var(--card-text)',
+    color: 'var(--card-text)', position: 'relative',
   },
   cellNote: { fontSize: 13.5, marginBottom: 8, lineHeight: 1.4, color: 'var(--card-text)', whiteSpace: 'pre-wrap' },
   countBadge: {

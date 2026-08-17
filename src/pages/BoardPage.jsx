@@ -105,7 +105,7 @@ export default function BoardPage() {
   }
 
   async function handleDeleteCard(cardId) {
-    if (confirm('Karte löschen?')) await deleteCard(boardId, cardId)
+    await deleteCard(boardId, cardId)
   }
 
   function nextDueDate(isoDate, freq) {
@@ -232,6 +232,7 @@ export default function BoardPage() {
                 .filter((p) => Date.now() - p.lastSeen < 60000)
                 .map((p) => <AvatarBubble key={p.id} email={p.email} photoURL={p.photoURL} overlap />)}
             </div>
+            <IconButton icon="background" emoji="🖼" title="Hintergrund" onClick={() => setShowBackground(true)} />
             <IconButton icon="labels" emoji="🏷" title="Kategorien" onClick={() => setShowLabels(true)} />
             <IconButton icon="automations" emoji="⚡" title="Automationen" onClick={() => setShowAutomations(true)} />
             <IconButton icon="members" emoji="👥" title="Mitglieder" onClick={() => setShowMembers(true)} />
@@ -249,9 +250,6 @@ export default function BoardPage() {
                 onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
               />
             </div>
-            <button className="btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowBackground(true)}>
-              Hintergrund ändern
-            </button>
 
             <div>
               <label className="field-label">Nur-Lese-Freigabe</label>
@@ -308,7 +306,7 @@ export default function BoardPage() {
                 search={search}
                 onAddCard={(title) => handleAddCard(list.id, title)}
                 onCardClick={(card) => setActiveCard(card)}
-                onDeleteList={() => confirm('Liste und alle Karten darin löschen?') && deleteList(boardId, list.id)}
+                onDeleteList={() => deleteList(boardId, list.id)}
                 onRenameList={(title) => updateList(boardId, list.id, { title })}
                 onRecolorList={(color) => updateList(boardId, list.id, { color })}
                 onQuickUpdateCard={handleCardUpdate}

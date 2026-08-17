@@ -110,8 +110,7 @@ export default function TablesPage() {
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}> — Mo–Fr × 6 Stunden</span>
                 </label>
               </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>Shift+Klick = weitere erstellen, Modal bleibt offen</span>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button type="button" className="btn-ghost" onClick={() => setShowCreate(false)}>Abbrechen</button>
                 <button
                   type="button"
