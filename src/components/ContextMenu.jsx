@@ -1,23 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 
-// Hook: liefert onContextMenu-Handler + aktuellen Menü-State für eine Komponente
+// Hook: liefert onContextMenu-Handler + aktuellen Menü-State für eine Komponente.
+// triggerRef muss auf das auslösende Element gesetzt werden, damit ein erneuter
+// Klick auf genau dieses Element das Menü schließt statt es sofort wieder zu öffnen.
 export function useContextMenu() {
   const [menu, setMenu] = useState(null) // { x, y } | null
+  const triggerRef = useRef(null)
 
   function open(e) {
     e.preventDefault()
     e.stopPropagation()
-    setMenu({ x: e.clientX, y: e.clientY })
+    setMenu((prev) => (prev ? null : { x: e.clientX, y: e.clientY }))
   }
 
   function close() {
     setMenu(null)
   }
 
-  return { menu, open, close }
+  return { menu, open, close, triggerRef }
 }
 
-export default function ContextMenu({ x, y, onClose, children }) {
+export default function ContextMenu({ x, y, onClose, excludeRef, children }) {
   const ref = useRef(null)
   const [pos, setPos] = useState({ x, y })
 
@@ -32,8 +35,11 @@ export default function ContextMenu({ x, y, onClose, children }) {
   }, [x, y])
 
   useEffect(() => {
+    function isExcluded(target) {
+      return !!(excludeRef?.current && excludeRef.current.contains(target))
+    }
     function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) onClose()
+      if (ref.current && !ref.current.contains(e.target) && !isExcluded(e.target)) onClose()
     }
     function handleKey(e) {
       if (e.key === 'Escape') onClose()
@@ -46,7 +52,7 @@ export default function ContextMenu({ x, y, onClose, children }) {
       document.removeEventListener('contextmenu', handleClick)
       document.removeEventListener('keydown', handleKey)
     }
-  }, [onClose])
+  }, [onClose, excludeRef])
 
   return (
     <div ref={ref} className="ctx-menu" style={{ top: pos.y, left: pos.x }}>
@@ -70,4 +76,21 @@ export function CtxSectionLabel({ children }) {
 
 export function CtxDivider() {
   return <div className="ctx-divider" />
+}
+
+// Zweistufige Löschbestätigung INNERHALB desselben Menüs (kein Browser-confirm nötig)
+export function CtxConfirm({ text = 'Wirklich löschen?', onConfirm, onCancel }) {
+  return (
+    <div>
+      <div style={{ padding: '6px 10px 10px', fontSize: 13, maxWidth: 200 }}>{text}</div>
+      <div style={{ display: 'flex', gap: 6, padding: '0 8px 8px' }}>
+        <button className="btn-danger" style={{ fontSize: 12, padding: '5px 10px', flex: 1 }} onClick={onConfirm}>
+          Löschen
+        </button>
+        <button className="btn-ghost" style={{ fontSize: 12, padding: '5px 10px', flex: 1 }} onClick={onCancel}>
+          Abbrechen
+        </button>
+      </div>
+    </div>
+  )
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Droppable } from '@hello-pangea/dnd'
 import CardItem from './CardItem'
-import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, useContextMenu } from './ContextMenu'
+import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, CtxConfirm, useContextMenu } from './ContextMenu'
 
 const LIST_COLORS = [null, '#6b8f71', '#d4a017', '#c1502e', '#4c6b8a', '#6e4b69', '#8a9a5b']
 
@@ -13,7 +13,8 @@ export default function List({
   const [newTitle, setNewTitle] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(list.title)
-  const { menu, open, close } = useContextMenu()
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const { menu, open, close, triggerRef } = useContextMenu()
 
   function submitCard(e) {
     e.preventDefault()
@@ -25,6 +26,11 @@ export default function List({
   function submitTitle() {
     setEditingTitle(false)
     if (titleDraft.trim() && titleDraft !== list.title) onRenameList(titleDraft.trim())
+  }
+
+  function closeMenu() {
+    close()
+    setConfirmingDelete(false)
   }
 
   return (
@@ -52,7 +58,7 @@ export default function List({
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={styles.count}>{cards.length}</span>
-          <button style={styles.menuBtn} onClick={open} title="Optionen">⋯</button>
+          <button ref={triggerRef} style={styles.menuBtn} onClick={open} title="Optionen">⋯</button>
         </div>
       </div>
 
@@ -113,26 +119,36 @@ export default function List({
       )}
 
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} onClose={close}>
-          <CtxItem onClick={() => { setEditingTitle(true); close() }} icon="✎">Umbenennen</CtxItem>
-          <CtxDivider />
-          <CtxSectionLabel>Farbe</CtxSectionLabel>
-          <div style={{ display: 'flex', gap: 6, padding: '4px 10px 8px', flexWrap: 'wrap' }}>
-            {LIST_COLORS.map((c, i) => (
-              <button
-                key={i}
-                onClick={() => { onRecolorList(c); close() }}
-                style={{
-                  width: 20, height: 20, borderRadius: 5,
-                  background: c || 'transparent',
-                  border: c ? (list.color === c ? '2px solid var(--text-primary)' : '2px solid transparent') : '2px dashed var(--muted)',
-                }}
-                title={c || 'Keine Farbe'}
-              />
-            ))}
-          </div>
-          <CtxDivider />
-          <CtxItem danger onClick={() => { onDeleteList(); close() }} icon="🗑">Liste löschen</CtxItem>
+        <ContextMenu x={menu.x} y={menu.y} onClose={closeMenu} excludeRef={triggerRef}>
+          {confirmingDelete ? (
+            <CtxConfirm
+              text="Liste und alle Karten darin löschen?"
+              onConfirm={() => { onDeleteList(); closeMenu() }}
+              onCancel={() => setConfirmingDelete(false)}
+            />
+          ) : (
+            <>
+              <CtxItem onClick={() => { setEditingTitle(true); closeMenu() }} icon="✎">Umbenennen</CtxItem>
+              <CtxDivider />
+              <CtxSectionLabel>Farbe</CtxSectionLabel>
+              <div style={{ display: 'flex', gap: 6, padding: '4px 10px 8px', flexWrap: 'wrap' }}>
+                {LIST_COLORS.map((c, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { onRecolorList(c); closeMenu() }}
+                    style={{
+                      width: 20, height: 20, borderRadius: 5,
+                      background: c || 'transparent',
+                      border: c ? (list.color === c ? '2px solid var(--text-primary)' : '2px solid transparent') : '2px dashed var(--muted)',
+                    }}
+                    title={c || 'Keine Farbe'}
+                  />
+                ))}
+              </div>
+              <CtxDivider />
+              <CtxItem danger onClick={() => setConfirmingDelete(true)} icon="🗑">Liste löschen</CtxItem>
+            </>
+          )}
         </ContextMenu>
       )}
     </div>

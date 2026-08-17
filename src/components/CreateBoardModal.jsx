@@ -67,8 +67,7 @@ export default function CreateBoardModal({ onClose, onCreate }) {
               </label>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Shift+Klick = weitere erstellen</span>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button type="button" className="btn-ghost" onClick={onClose}>Abbrechen</button>
             <button type="button" className="btn" onClick={(e) => submit(e, e.shiftKey)}>Erstellen</button>
           </div>

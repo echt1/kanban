@@ -5,20 +5,24 @@ export default function ConfirmButton({ onConfirm, label = '×', confirmText = '
   const btnRef = useRef(null)
   const [pos, setPos] = useState(null)
 
-  function open(e) {
+  function toggle(e) {
     e.preventDefault()
     e.stopPropagation()
+    if (pos) { setPos(null); return }
     const r = btnRef.current.getBoundingClientRect()
-    setPos({ x: r.right - 200, y: r.bottom + 4 })
+    const popoverWidth = 200
+    const fitsRight = r.right + 8 + popoverWidth < window.innerWidth
+    const x = fitsRight ? r.right + 8 : Math.max(8, r.left - 8 - popoverWidth)
+    setPos({ x, y: r.top })
   }
 
   return (
     <>
-      <button ref={btnRef} type="button" className={className} style={style} title={title} onClick={open}>
+      <button ref={btnRef} type="button" className={className} style={style} title={title} onClick={toggle}>
         {label}
       </button>
       {pos && (
-        <ContextMenu x={pos.x} y={pos.y} onClose={() => setPos(null)}>
+        <ContextMenu x={pos.x} y={pos.y} onClose={() => setPos(null)} excludeRef={btnRef}>
           <div style={{ padding: '6px 10px 8px', fontSize: 13, maxWidth: 200 }}>{confirmText}</div>
           <div style={{ display: 'flex', gap: 6, padding: '0 8px 8px' }}>
             <button

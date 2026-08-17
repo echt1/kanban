@@ -9,6 +9,7 @@ export default function Select({ value, onChange, options, placeholder = 'Auswä
 
   function openMenu(e) {
     e.stopPropagation()
+    if (open) { setOpen(false); return }
     const r = btnRef.current.getBoundingClientRect()
     setPos({ x: r.left, y: r.bottom + 4 })
     setOpen(true)
@@ -32,7 +33,7 @@ export default function Select({ value, onChange, options, placeholder = 'Auswä
         <span style={{ color: 'var(--muted)', fontSize: 10, flexShrink: 0 }}>▾</span>
       </button>
       {open && pos && (
-        <ContextMenu x={pos.x} y={pos.y} onClose={() => setOpen(false)}>
+        <ContextMenu x={pos.x} y={pos.y} onClose={() => setOpen(false)} excludeRef={btnRef}>
           {options.length === 0 && (
             <div style={{ padding: '8px 10px', fontSize: 13, color: 'var(--muted)' }}>Keine Optionen</div>
           )}
