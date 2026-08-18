@@ -323,7 +323,7 @@ export default function BoardPage() {
                       <div
                         ref={dragProvided.innerRef}
                         {...dragProvided.draggableProps}
-                        style={{ ...dragProvided.draggableProps.style }}
+                        style={{ height: '100%', ...dragProvided.draggableProps.style }}
                       >
                         <List
                           list={list}
