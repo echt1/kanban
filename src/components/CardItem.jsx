@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Draggable } from '@hello-pangea/dnd'
 import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, CtxConfirm, useContextMenu } from './ContextMenu'
 import { renderMarkdownLite } from '../lib/markdown'
@@ -18,20 +18,23 @@ function hostnameOf(url) {
   }
 }
 
-export default function CardItem({ card, index, labels, members, dimmed, onClick, onQuickUpdate, onDelete }) {
+export default function CardItem({ card, index, labels, members, dimmed, compactLabels, onToggleCompactLabels, onClick, onQuickUpdate, onDelete }) {
   const { menu, open, close } = useContextMenu()
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(card.title)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [hovering, setHovering] = useState(false)
+  const cardRef = useRef(null)
+  const titleAreaRef = useRef(null)
 
   function closeMenu() {
     close()
     setConfirmingDelete(false)
   }
 
-  const cardLabels = (card.labelIds || [])
-    .map((id) => labels.find((l) => l.id === id))
-    .filter(Boolean)
+  // Kategorien in der Reihenfolge der Kategorien-Übersicht anzeigen, nicht in
+  // der Reihenfolge, in der sie der Karte zugewiesen wurden
+  const cardLabels = labels.filter((l) => (card.labelIds || []).includes(l.id))
 
   const due = card.dueDate ? new Date(card.dueDate) : null
   const isOverdue = due && due < new Date(new Date().toDateString())
@@ -64,6 +67,26 @@ export default function CardItem({ card, index, labels, members, dimmed, onClick
     else setTitleDraft(card.title)
   }
 
+  // Entf/Backspace löscht die Karte, während man mit der Maus darüber ist
+  // (nicht wenn gerade irgendwo getippt wird)
+  useEffect(() => {
+    function handleKey(e) {
+      if (!hovering || editingTitle) return
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        const rect = cardRef.current?.getBoundingClientRect()
+        if (rect) {
+          open({ preventDefault: () => {}, stopPropagation: () => {}, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 })
+          setConfirmingDelete(true)
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [hovering, editingTitle, open])
+
   const coverStyle = card.cover?.type === 'color' && card.cover.value
     ? { background: card.cover.value, height: 35 }
     : card.cover?.type === 'image' && card.cover.value
@@ -75,11 +98,13 @@ export default function CardItem({ card, index, labels, members, dimmed, onClick
       <Draggable draggableId={card.id} index={index}>
         {(provided, snapshot) => (
           <div
-            ref={provided.innerRef}
+            ref={(node) => { provided.innerRef(node); cardRef.current = node }}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
             onClick={onClick}
             onContextMenu={open}
+            onMouseEnter={() => setHovering(true)}
+            onMouseLeave={() => setHovering(false)}
             className="board-card"
             style={{
               ...styles.card,
@@ -96,11 +121,23 @@ export default function CardItem({ card, index, labels, members, dimmed, onClick
               {cardLabels.length > 0 && (
                 <div style={styles.labelRow}>
                   {cardLabels.map((l) => (
-                    <span key={l.id} style={{ ...styles.labelChip, background: l.color }}>{l.name}</span>
+                    <span
+                      key={l.id}
+                      onClick={(e) => { e.stopPropagation(); onToggleCompactLabels?.() }}
+                      title={compactLabels ? l.name : undefined}
+                      style={{
+                        ...styles.labelChip,
+                        background: l.color,
+                        width: compactLabels ? 28 : 'auto',
+                        color: compactLabels ? 'transparent' : '#fff',
+                      }}
+                    >
+                      {l.name}
+                    </span>
                   ))}
                 </div>
               )}
-              <div style={styles.titleRow}>
+              <div style={styles.titleRow} ref={titleAreaRef}>
                 <label
                   className={`card-check-wrap${card.done ? ' always' : ''}`}
                   style={styles.checkboxHit}
@@ -115,18 +152,19 @@ export default function CardItem({ card, index, labels, members, dimmed, onClick
                   />
                 </label>
                 {editingTitle ? (
-                  <input
+                  <textarea
                     autoFocus
                     className="text-input"
                     value={titleDraft}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onChange={(e) => { setTitleDraft(e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
                     onBlur={commitTitle}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitTitle()
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitTitle() }
                       if (e.key === 'Escape') { setTitleDraft(card.title); setEditingTitle(false) }
                     }}
-                    style={{ flex: 1, fontSize: 14, padding: '3px 6px' }}
+                    rows={1}
+                    style={{ flex: 1, fontSize: 14, padding: '3px 6px', resize: 'none', overflow: 'hidden', fontFamily: 'var(--font-body)' }}
                   />
                 ) : (
                   <>
@@ -151,7 +189,7 @@ export default function CardItem({ card, index, labels, members, dimmed, onClick
                   style={styles.descPreview}
                   dangerouslySetInnerHTML={{
                     __html: renderMarkdownLite(
-                      card.description.length > 90 ? card.description.slice(0, 90) + '…' : card.description
+                      card.description.length > 320 ? card.description.slice(0, 320) + '…' : card.description
                     ),
                   }}
                 />
@@ -282,7 +320,7 @@ const styles = {
   descPreview: {
     margin: '4px 0 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.4,
     overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
-    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: 7, WebkitBoxOrient: 'vertical',
   },
   linkChip: {
     display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8,

@@ -35,6 +35,14 @@ export default function CardModal({ card, labels, members, currentUserEmail, onC
   const [commentText, setCommentText] = useState('')
   const [descPreview, setDescPreview] = useState(false)
   const saveTimeout = useRef(null)
+  const titleRef = useRef(null)
+
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.style.height = 'auto'
+      titleRef.current.style.height = titleRef.current.scrollHeight + 'px'
+    }
+  }, [])
 
   function basePayload(extra = {}) {
     return {
@@ -103,8 +111,8 @@ export default function CardModal({ card, labels, members, currentUserEmail, onC
         )}
 
         <div style={{ padding: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <label style={styles.checkboxHit} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+            <label style={{ ...styles.checkboxHit, marginTop: 4 }} onClick={(e) => e.stopPropagation()}>
               <input
                 type="checkbox"
                 checked={!!card.done}
@@ -112,11 +120,13 @@ export default function CardModal({ card, labels, members, currentUserEmail, onC
                 style={{ width: 18, height: 18, display: 'block' }}
               />
             </label>
-            <input
+            <textarea
+              ref={titleRef}
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={{ ...styles.titleInput, textDecoration: card.done ? 'line-through' : 'none', flex: 1 }}
+              onChange={(e) => { setTitle(e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+              style={{ ...styles.titleInput, textDecoration: card.done ? 'line-through' : 'none', flex: 1, resize: 'none', overflow: 'hidden' }}
               placeholder="Titel"
+              rows={1}
             />
           </div>
 

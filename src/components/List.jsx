@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Droppable } from '@hello-pangea/dnd'
 import CardItem from './CardItem'
 import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, CtxConfirm, useContextMenu } from './ContextMenu'
@@ -6,7 +6,8 @@ import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, CtxConfirm, useConte
 const LIST_COLORS = [null, '#6b8f71', '#d4a017', '#c1502e', '#4c6b8a', '#6e4b69', '#8a9a5b']
 
 export default function List({
-  list, cards, labels, members, search, onAddCard, onCardClick, onDeleteList, onRenameList, onRecolorList,
+  list, cards, labels, members, search, dragHandleProps, compactLabels, onToggleCompactLabels,
+  onAddCard, onCardClick, onDeleteList, onRenameList, onRecolorList,
   onQuickUpdateCard, onDeleteCard,
 }) {
   const [adding, setAdding] = useState(false)
@@ -15,12 +16,18 @@ export default function List({
   const [titleDraft, setTitleDraft] = useState(list.title)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const { menu, open, close, triggerRef } = useContextMenu()
+  const addFormRef = useRef(null)
 
-  function submitCard(e) {
+  useEffect(() => {
+    if (adding) addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [adding])
+
+  function submitCard(e, keepOpen) {
     e.preventDefault()
     if (!newTitle.trim()) { setAdding(false); return }
     onAddCard(newTitle.trim())
     setNewTitle('')
+    if (!keepOpen) setAdding(false)
   }
 
   function submitTitle() {
@@ -54,15 +61,15 @@ export default function List({
             style={{ fontSize: 14, padding: '4px 8px' }}
           />
         ) : (
-          <h3 style={styles.title} onClick={() => setEditingTitle(true)}>{list.title}</h3>
+          <h3 style={styles.title} onClick={() => setEditingTitle(true)} {...dragHandleProps}>{list.title}</h3>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <span style={styles.count}>{cards.length}</span>
           <button ref={triggerRef} style={styles.menuBtn} onClick={open} title="Optionen">⋯</button>
         </div>
       </div>
 
-      <Droppable droppableId={list.id}>
+      <Droppable droppableId={list.id} type="CARD">
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
@@ -82,6 +89,8 @@ export default function List({
                   index={i}
                   labels={labels}
                   members={members}
+                  compactLabels={compactLabels}
+                  onToggleCompactLabels={onToggleCompactLabels}
                   dimmed={!matches}
                   onClick={() => onCardClick(card)}
                   onQuickUpdate={(data) => onQuickUpdateCard(card.id, data)}
@@ -95,7 +104,7 @@ export default function List({
       </Droppable>
 
       {adding ? (
-        <form onSubmit={submitCard}>
+        <form onSubmit={(e) => submitCard(e, false)} ref={addFormRef}>
           <textarea
             autoFocus
             className="text-input"
@@ -103,10 +112,11 @@ export default function List({
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitCard(e) }
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitCard(e, false) }
+              else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); submitCard(e, true) }
               if (e.key === 'Escape') setAdding(false)
             }}
-            placeholder="Titel der Karte …"
+            placeholder="Titel der Karte … (Shift+Enter = weitere Karte anlegen)"
             style={{ marginBottom: 6, resize: 'none' }}
           />
           <div style={{ display: 'flex', gap: 8 }}>
@@ -161,10 +171,11 @@ const styles = {
     width: 268, flexShrink: 0, display: 'flex', flexDirection: 'column',
     maxHeight: '100%',
   },
-  header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 4px' },
+  header: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, padding: '0 4px', gap: 6 },
   title: {
     fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 700, margin: 0,
     cursor: 'text', color: 'var(--text-primary)', lineHeight: 1.25,
+    overflowWrap: 'anywhere', wordBreak: 'break-word', flex: 1, minWidth: 0,
   },
   menuBtn: { background: 'none', color: 'var(--muted)', fontSize: 16, lineHeight: 1, padding: '0 4px' },
   count: {
