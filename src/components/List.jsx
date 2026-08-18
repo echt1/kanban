@@ -116,7 +116,7 @@ export default function List({
               else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); submitCard(e, true) }
               if (e.key === 'Escape') setAdding(false)
             }}
-            placeholder="Titel der Karte … (Shift+Enter = weitere Karte anlegen)"
+            placeholder="Titel der Karte …"
             style={{ marginBottom: 6, resize: 'none' }}
           />
           <div style={{ display: 'flex', gap: 8 }}>

@@ -18,18 +18,24 @@ function hostnameOf(url) {
   }
 }
 
+const LABEL_CAP = 5
+
 export default function CardItem({ card, index, labels, members, dimmed, compactLabels, onToggleCompactLabels, onClick, onQuickUpdate, onDelete }) {
   const { menu, open, close } = useContextMenu()
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(card.title)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [labelSubmenuPos, setLabelSubmenuPos] = useState(null)
+  const moreLabelsRef = useRef(null)
   const [hovering, setHovering] = useState(false)
   const cardRef = useRef(null)
   const titleAreaRef = useRef(null)
+  const titleTextareaRef = useRef(null)
 
   function closeMenu() {
     close()
     setConfirmingDelete(false)
+    setLabelSubmenuPos(null)
   }
 
   // Kategorien in der Reihenfolge der Kategorien-Übersicht anzeigen, nicht in
@@ -66,6 +72,14 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
     if (titleDraft.trim() && titleDraft !== card.title) onQuickUpdate({ title: titleDraft.trim() })
     else setTitleDraft(card.title)
   }
+
+  useEffect(() => {
+    if (editingTitle && titleTextareaRef.current) {
+      const el = titleTextareaRef.current
+      el.style.height = 'auto'
+      el.style.height = el.scrollHeight + 'px'
+    }
+  }, [editingTitle])
 
   // Entf/Backspace löscht die Karte, während man mit der Maus darüber ist
   // (nicht wenn gerade irgendwo getippt wird)
@@ -125,14 +139,13 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
                       key={l.id}
                       onClick={(e) => { e.stopPropagation(); onToggleCompactLabels?.() }}
                       title={compactLabels ? l.name : undefined}
-                      style={{
-                        ...styles.labelChip,
-                        background: l.color,
-                        width: compactLabels ? 28 : 'auto',
-                        color: compactLabels ? 'transparent' : '#fff',
-                      }}
+                      style={
+                        compactLabels
+                          ? { ...styles.labelChipCompact, background: l.color }
+                          : { ...styles.labelChip, background: l.color }
+                      }
                     >
-                      {l.name}
+                      {!compactLabels && l.name}
                     </span>
                   ))}
                 </div>
@@ -154,6 +167,7 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
                 {editingTitle ? (
                   <textarea
                     autoFocus
+                    ref={titleTextareaRef}
                     className="text-input"
                     value={titleDraft}
                     onClick={(e) => e.stopPropagation()}
@@ -259,13 +273,28 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
                 <>
                   <CtxDivider />
                   <CtxSectionLabel>Kategorien</CtxSectionLabel>
-                  {labels.map((l) => (
+                  {labels.slice(0, LABEL_CAP).map((l) => (
                     <div key={l.id} className="ctx-label-row" onClick={() => toggleLabel(l.id)}>
                       <span className="ctx-swatch" style={{ background: l.color }} />
                       <span style={{ flex: 1 }}>{l.name}</span>
                       {(card.labelIds || []).includes(l.id) && <span>✓</span>}
                     </div>
                   ))}
+                  {labels.length > LABEL_CAP && (
+                    <div
+                      ref={moreLabelsRef}
+                      className="ctx-item"
+                      style={{ justifyContent: 'space-between' }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const r = moreLabelsRef.current.getBoundingClientRect()
+                        setLabelSubmenuPos(labelSubmenuPos ? null : { x: r.right + 4, y: r.top })
+                      }}
+                    >
+                      <span>Weitere ({labels.length - LABEL_CAP})</span>
+                      <span>▸</span>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -290,6 +319,18 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
           )}
         </ContextMenu>
       )}
+
+      {labelSubmenuPos && (
+        <ContextMenu x={labelSubmenuPos.x} y={labelSubmenuPos.y} onClose={() => setLabelSubmenuPos(null)} excludeRef={moreLabelsRef}>
+          {labels.slice(LABEL_CAP).map((l) => (
+            <div key={l.id} className="ctx-label-row" onClick={() => toggleLabel(l.id)}>
+              <span className="ctx-swatch" style={{ background: l.color }} />
+              <span style={{ flex: 1 }}>{l.name}</span>
+              {(card.labelIds || []).includes(l.id) && <span>✓</span>}
+            </div>
+          ))}
+        </ContextMenu>
+      )}
     </>
   )
 }
@@ -306,6 +347,9 @@ const styles = {
   labelChip: {
     fontSize: 10, fontWeight: 700, color: '#fff', padding: '2px 6px', borderRadius: 3,
     textTransform: 'uppercase', letterSpacing: '0.03em',
+  },
+  labelChipCompact: {
+    width: 26, height: 8, borderRadius: 4, display: 'block',
   },
   titleRow: { display: 'flex', alignItems: 'center', gap: 6 },
   checkboxHit: {
