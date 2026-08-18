@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Navigate } from 'react-router-dom'
+import { useParams, Navigate, useNavigate } from 'react-router-dom'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
-import { subscribeBoards, subscribeCards, updateTable, deleteTable } from '../lib/firestore'
+import { subscribeBoards, subscribeCards, updateTable, deleteTable, updateCard } from '../lib/firestore'
 import Navbar from '../components/Navbar'
 import TableCellModal from '../components/TableCellModal'
 import ConfirmButton from '../components/ConfirmButton'
 import BackgroundModal from '../components/BackgroundModal'
-import IconButton from '../components/IconButton'
 
 export default function TableDetailPage() {
   const { tableId } = useParams()
@@ -55,15 +54,14 @@ export default function TableDetailPage() {
     return `${rowId}:${colId}`
   }
 
-  function cellStats(rowId, colId) {
-    const cell = table.cells?.[cellKey(rowId, colId)]
-    const linked = cell?.linkedCards || []
-    let open = 0
-    for (const l of linked) {
-      const card = (cardsByBoard[l.boardId] || []).find((c) => c.id === l.cardId)
-      if (card && !card.done) open++
-    }
-    return { total: linked.length, open, note: cell?.note || '' }
+  function resolveLinked(cell) {
+    return (cell?.linkedCards || [])
+      .map((l) => {
+        const board = boards.find((b) => b.id === l.boardId)
+        const card = (cardsByBoard[l.boardId] || []).find((c) => c.id === l.cardId)
+        return board && card ? { board, card } : null
+      })
+      .filter(Boolean)
   }
 
   async function addRow() {
@@ -117,7 +115,6 @@ export default function TableDetailPage() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar
         boardTitle={table.title}
-        icons={<IconButton icon="background" emoji="🖼" title="Hintergrund" onClick={() => setShowBackground(true)} />}
         boardSettingsSection={
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
@@ -128,6 +125,9 @@ export default function TableDetailPage() {
                 onBlur={(e) => e.target.value.trim() && e.target.value !== table.title && updateTable(tableId, { title: e.target.value.trim() })}
               />
             </div>
+            <button className="btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowBackground(true)}>
+              Hintergrund ändern
+            </button>
             {isOwner && (
               <ConfirmButton
                 className="btn-danger"
@@ -180,52 +180,17 @@ export default function TableDetailPage() {
                     </div>
                   </th>
                   {cols.map((c) => {
-                    const stats = cellStats(r.id, c.id)
                     const cell = table.cells?.[cellKey(r.id, c.id)]
-                    const linked = cell?.linkedCards || []
+                    const resolved = resolveLinked(cell)
+                    const openCount = resolved.filter((x) => !x.card.done).length
                     return (
-                      <td
+                      <TableCell
                         key={c.id}
-                        style={styles.cell}
-                        className={linked.length > 0 || stats.note ? 'table-cell-hover' : ''}
-                        onClick={() => setActiveCell({ rowId: r.id, colId: c.id })}
-                      >
-                        {stats.note && <div style={styles.cellNote}>{stats.note}</div>}
-                        {stats.total > 0 && (
-                          <span style={{
-                            ...styles.countBadge,
-                            background: stats.open > 0 ? 'var(--accent-amber)' : 'var(--accent-sage)',
-                          }}>
-                            {stats.total}
-                          </span>
-                        )}
-                        {stats.total === 0 && !stats.note && <span style={styles.emptyHint}>+</span>}
-
-                        {(linked.length > 0 || stats.note) && (
-                          <div className="cell-preview">
-                            {stats.note && <div style={{ marginBottom: linked.length > 0 ? 8 : 0, whiteSpace: 'pre-wrap' }}>{stats.note}</div>}
-                            {linked.map((l) => {
-                              const board = boards.find((b) => b.id === l.boardId)
-                              const card = (cardsByBoard[l.boardId] || []).find((cd) => cd.id === l.cardId)
-                              if (!board || !card) return null
-                              return (
-                                <div key={`${l.boardId}-${l.cardId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                  <span style={{
-                                    width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                                    background: card.done ? 'var(--accent-sage)' : 'var(--accent-amber)',
-                                  }} />
-                                  <span style={{
-                                    textDecoration: card.done ? 'line-through' : 'none',
-                                    opacity: card.done ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                  }}>
-                                    {card.title}
-                                  </span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </td>
+                        note={cell?.note || ''}
+                        resolved={resolved}
+                        openCount={openCount}
+                        onOpen={() => setActiveCell({ rowId: r.id, colId: c.id })}
+                      />
                     )
                   })}
                   <td />
@@ -263,6 +228,94 @@ export default function TableDetailPage() {
         />
       )}
     </div>
+  )
+}
+
+// Eine Tabellenzelle inkl. Hover-Vorschau (nur wenn Karten verlinkt sind),
+// mit Durchblättern bei mehreren Karten und direktem Abhaken.
+function TableCell({ note, resolved, openCount, onOpen }) {
+  const [hovering, setHovering] = useState(false)
+  const [previewIndex, setPreviewIndex] = useState(0)
+  const navigate = useNavigate()
+
+  const total = resolved.length
+  const current = total > 0 ? resolved[previewIndex % total] : null
+
+  function goto(boardId) {
+    navigate(`/board/${boardId}`)
+  }
+
+  return (
+    <td
+      style={styles.cell}
+      onClick={onOpen}
+      onMouseEnter={() => { setHovering(true); setPreviewIndex(0) }}
+      onMouseLeave={() => setHovering(false)}
+    >
+      {note && <div style={styles.cellNote}>{note}</div>}
+      {total > 0 && (
+        <span style={{ ...styles.cornerBadge, background: openCount > 0 ? 'var(--accent-amber)' : 'var(--accent-sage)' }}>
+          {total}
+        </span>
+      )}
+      {total === 0 && !note && <span style={styles.emptyHint}>+</span>}
+
+      {hovering && current && (
+        <div className="cell-card-preview" onClick={(e) => e.stopPropagation()}>
+          {(current.card.labelIds || []).length > 0 && (
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+              {current.card.labelIds.map((id) => {
+                const l = current.board.labels?.find((x) => x.id === id)
+                if (!l) return null
+                return <span key={id} style={{ background: l.color, color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3, textTransform: 'uppercase' }}>{l.name}</span>
+              })}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+            <input
+              type="checkbox"
+              checked={!!current.card.done}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => updateCard(current.board.id, current.card.id, { done: e.target.checked })}
+              style={{ width: 15, height: 15, marginTop: 2, flexShrink: 0 }}
+            />
+            <span
+              onClick={(e) => { e.stopPropagation(); goto(current.board.id) }}
+              style={{
+                fontWeight: 600, cursor: 'pointer',
+                textDecoration: current.card.done ? 'line-through' : 'none', opacity: current.card.done ? 0.6 : 1,
+              }}
+            >
+              {current.card.title}
+            </span>
+          </div>
+          <div
+            onClick={(e) => { e.stopPropagation(); goto(current.board.id) }}
+            style={{ fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}
+          >
+            {current.board.title}
+          </div>
+
+          {total > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+              <button
+                style={styles.pageBtn}
+                onClick={(e) => { e.stopPropagation(); setPreviewIndex((previewIndex - 1 + total) % total) }}
+              >
+                ←
+              </button>
+              <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{previewIndex + 1}/{total}</span>
+              <button
+                style={styles.pageBtn}
+                onClick={(e) => { e.stopPropagation(); setPreviewIndex((previewIndex + 1) % total) }}
+              >
+                →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </td>
   )
 }
 
@@ -315,11 +368,11 @@ const styles = {
     padding: '14px 16px', minWidth: 190, minHeight: 74, verticalAlign: 'top', cursor: 'pointer',
     color: 'var(--card-text)', position: 'relative',
   },
-  cellNote: { fontSize: 13.5, marginBottom: 8, lineHeight: 1.4, color: 'var(--card-text)', whiteSpace: 'pre-wrap' },
-  countBadge: {
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    minWidth: 22, height: 22, padding: '0 6px', borderRadius: 11,
-    fontSize: 12, fontWeight: 700, color: '#1a1a1a',
+  cellNote: { fontSize: 13.5, marginBottom: 6, lineHeight: 1.4, color: 'var(--card-text)', whiteSpace: 'pre-wrap', paddingRight: 20 },
+  cornerBadge: {
+    position: 'absolute', top: 8, right: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 20, height: 20, padding: '0 5px', borderRadius: 10, fontSize: 11, fontWeight: 700, color: '#1a1a1a',
   },
+  pageBtn: { background: 'none', color: 'var(--text-primary)', fontSize: 13, padding: '2px 8px' },
   emptyHint: { color: 'var(--muted)', fontSize: 15 },
 }

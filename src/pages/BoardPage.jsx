@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Navigate, useNavigate } from 'react-router-dom'
-import { DragDropContext } from '@hello-pangea/dnd'
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { doc, onSnapshot, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
@@ -37,6 +37,7 @@ export default function BoardPage() {
   const [search, setSearch] = useState('')
   const [boardTitleDraft, setBoardTitleDraft] = useState('')
   const [presence, setPresence] = useState([])
+  const [compactLabels, setCompactLabels] = useState(false)
 
   useEffect(() => {
     upsertPresence(boardId, user.uid, user.email, user.photoURL)
@@ -166,8 +167,23 @@ export default function BoardPage() {
   }
 
   async function handleDragEnd(result) {
-    const { source, destination } = result
+    const { source, destination, type } = result
     if (!destination) return
+
+    if (type === 'LIST') {
+      if (source.index === destination.index) return
+      const reordered = Array.from(lists).sort((a, b) => a.order - b.order)
+      const [moved] = reordered.splice(source.index, 1)
+      reordered.splice(destination.index, 0, moved)
+      setLists(reordered.map((l, i) => ({ ...l, order: i })))
+      const batch = writeBatch(db)
+      reordered.forEach((l, i) => {
+        batch.update(doc(db, 'boards', boardId, 'lists', l.id), { order: i })
+      })
+      await batch.commit()
+      return
+    }
+
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
     const sourceListId = source.droppableId
@@ -232,7 +248,6 @@ export default function BoardPage() {
                 .filter((p) => Date.now() - p.lastSeen < 60000)
                 .map((p) => <AvatarBubble key={p.id} email={p.email} photoURL={p.photoURL} overlap />)}
             </div>
-            <IconButton icon="background" emoji="🖼" title="Hintergrund" onClick={() => setShowBackground(true)} />
             <IconButton icon="labels" emoji="🏷" title="Kategorien" onClick={() => setShowLabels(true)} />
             <IconButton icon="automations" emoji="⚡" title="Automationen" onClick={() => setShowAutomations(true)} />
             <IconButton icon="members" emoji="👥" title="Mitglieder" onClick={() => setShowMembers(true)} />
@@ -250,6 +265,10 @@ export default function BoardPage() {
                 onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
               />
             </div>
+
+            <button className="btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowBackground(true)}>
+              Hintergrund ändern
+            </button>
 
             <div>
               <label className="field-label">Nur-Lese-Freigabe</label>
@@ -295,24 +314,39 @@ export default function BoardPage() {
 
       <div style={boardAreaStyle}>
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div style={styles.listsRow}>
-            {lists.map((list) => (
-              <List
-                key={list.id}
-                list={list}
-                cards={(cardsByList[list.id] || []).slice().sort((a, b) => a.order - b.order)}
-                labels={board.labels || []}
-                members={board.memberEmails || []}
-                search={search}
-                onAddCard={(title) => handleAddCard(list.id, title)}
-                onCardClick={(card) => setActiveCard(card)}
-                onDeleteList={() => deleteList(boardId, list.id)}
-                onRenameList={(title) => updateList(boardId, list.id, { title })}
-                onRecolorList={(color) => updateList(boardId, list.id, { color })}
-                onQuickUpdateCard={handleCardUpdate}
-                onDeleteCard={handleDeleteCard}
-              />
-            ))}
+          <Droppable droppableId="board-lists" direction="horizontal" type="LIST">
+            {(listsProvided) => (
+              <div style={styles.listsRow} ref={listsProvided.innerRef} {...listsProvided.droppableProps}>
+                {lists.map((list, idx) => (
+                  <Draggable key={list.id} draggableId={`list-${list.id}`} index={idx}>
+                    {(dragProvided) => (
+                      <div
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        style={{ ...dragProvided.draggableProps.style }}
+                      >
+                        <List
+                          list={list}
+                          cards={(cardsByList[list.id] || []).slice().sort((a, b) => a.order - b.order)}
+                          labels={board.labels || []}
+                          members={board.memberEmails || []}
+                          search={search}
+                          dragHandleProps={dragProvided.dragHandleProps}
+                          compactLabels={compactLabels}
+                          onToggleCompactLabels={() => setCompactLabels((v) => !v)}
+                          onAddCard={(title) => handleAddCard(list.id, title)}
+                          onCardClick={(card) => setActiveCard(card)}
+                          onDeleteList={() => deleteList(boardId, list.id)}
+                          onRenameList={(title) => updateList(boardId, list.id, { title })}
+                          onRecolorList={(color) => updateList(boardId, list.id, { color })}
+                          onQuickUpdateCard={handleCardUpdate}
+                          onDeleteCard={handleDeleteCard}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {listsProvided.placeholder}
 
             <div style={styles.newList}>
               {addingList ? (
@@ -335,7 +369,9 @@ export default function BoardPage() {
                 <button style={styles.addListBtn} onClick={() => setAddingList(true)}>+ Liste hinzufügen</button>
               )}
             </div>
-          </div>
+              </div>
+            )}
+          </Droppable>
         </DragDropContext>
       </div>
 
