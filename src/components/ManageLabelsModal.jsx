@@ -36,6 +36,10 @@ export default function ManageLabelsModal({ board, onClose }) {
     persist(labels.filter((l) => l.id !== id))
   }
 
+  function togglePin(id) {
+    persist(labels.map((l) => (l.id === id ? { ...l, pinned: !l.pinned } : l)))
+  }
+
   function handleDragEnd(result) {
     if (!result.destination) return
     const next = Array.from(labels)
@@ -49,7 +53,8 @@ export default function ManageLabelsModal({ board, onClose }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Kategorien verwalten</h2>
         <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: -14, marginBottom: 16 }}>
-          Reihenfolge hier bestimmt, wie Kategorien auf Karten angezeigt werden — per ⠿ ziehen.
+          Reihenfolge per ⠿ ziehen. Mit ★ anpinnen, um eine Kategorie direkt im
+          Rechtsklick-Menü zu zeigen — alle anderen landen dort unter "Weitere".
         </p>
 
         <DragDropContext onDragEnd={handleDragEnd}>
@@ -74,6 +79,14 @@ export default function ManageLabelsModal({ board, onClose }) {
                             onChange={(e) => renameLabel(l.id, e.target.value)}
                             style={{ flex: 1 }}
                           />
+                          <button
+                            type="button"
+                            onClick={() => togglePin(l.id)}
+                            style={{ ...styles.pinBtn, color: l.pinned ? 'var(--accent-amber)' : 'var(--muted)' }}
+                            title={l.pinned ? 'Aus Schnellzugriff entfernen' : 'Im Rechtsklick-Menü anpinnen'}
+                          >
+                            {l.pinned ? '★' : '☆'}
+                          </button>
                           <ConfirmButton
                             style={styles.deleteBtn}
                             label="×"
@@ -127,5 +140,6 @@ const styles = {
   row: { display: 'flex', alignItems: 'center', gap: 8 },
   dragHandle: { color: 'var(--muted)', cursor: 'grab', fontSize: 14, flexShrink: 0, padding: '0 2px' },
   swatchBtn: { width: 32, height: 32, borderRadius: 6, border: 'none', flexShrink: 0, cursor: 'pointer' },
+  pinBtn: { background: 'none', fontSize: 16, padding: '0 4px', flexShrink: 0 },
   deleteBtn: { background: 'none', color: 'var(--muted)', fontSize: 18, padding: '0 6px' },
 }

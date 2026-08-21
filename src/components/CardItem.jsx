@@ -40,6 +40,12 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
   // der Reihenfolge, in der sie der Karte zugewiesen wurden
   const cardLabels = labels.filter((l) => (card.labelIds || []).includes(l.id))
 
+  // Gepinnte Kategorien zuerst direkt im Rechtsklick-Menü zeigen, Rest hinter
+  // "Weitere". Solange nichts gepinnt ist, als Fallback einfach die ersten 5.
+  const hasPinned = labels.some((l) => l.pinned)
+  const quickLabels = hasPinned ? labels.filter((l) => l.pinned) : labels.slice(0, LABEL_CAP)
+  const overflowLabels = hasPinned ? labels.filter((l) => !l.pinned) : labels.slice(LABEL_CAP)
+
   const due = card.dueDate ? new Date(card.dueDate) : null
   const isOverdue = due && due < new Date(new Date().toDateString())
   const isSoon = due && !isOverdue && (due - new Date()) / 86400000 < 2
@@ -262,14 +268,14 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
             <>
               <CtxDivider />
               <CtxSectionLabel>Kategorien</CtxSectionLabel>
-              {labels.slice(0, LABEL_CAP).map((l) => (
+              {quickLabels.map((l) => (
                 <div key={l.id} className="ctx-label-row" onClick={() => toggleLabel(l.id)}>
                   <span className="ctx-swatch" style={{ background: l.color }} />
                   <span style={{ flex: 1 }}>{l.name}</span>
                   {(card.labelIds || []).includes(l.id) && <span>✓</span>}
                 </div>
               ))}
-              {labels.length > LABEL_CAP && (
+              {overflowLabels.length > 0 && (
                 <div
                   ref={moreLabelsRef}
                   className="ctx-item"
@@ -280,7 +286,7 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
                     setLabelSubmenuPos(labelSubmenuPos ? null : { x: r.right + 4, y: r.top })
                   }}
                 >
-                  <span>Weitere ({labels.length - LABEL_CAP})</span>
+                  <span>Weitere ({overflowLabels.length})</span>
                   <span>▸</span>
                 </div>
               )}
@@ -309,7 +315,7 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
 
       {labelSubmenuPos && (
         <ContextMenu x={labelSubmenuPos.x} y={labelSubmenuPos.y} onClose={() => setLabelSubmenuPos(null)} excludeRef={moreLabelsRef}>
-          {labels.slice(LABEL_CAP).map((l) => (
+          {overflowLabels.map((l) => (
             <div key={l.id} className="ctx-label-row" onClick={() => toggleLabel(l.id)}>
               <span className="ctx-swatch" style={{ background: l.color }} />
               <span style={{ flex: 1 }}>{l.name}</span>
