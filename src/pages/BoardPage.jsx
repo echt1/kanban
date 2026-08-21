@@ -19,6 +19,8 @@ import AutomationsModal from '../components/AutomationsModal'
 import IconButton from '../components/IconButton'
 import AvatarBubble from '../components/AvatarBubble'
 import ConfirmButton from '../components/ConfirmButton'
+import ArchiveModal from '../components/ArchiveModal'
+import ColorGrid from '../components/ColorGrid'
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -38,6 +40,7 @@ export default function BoardPage() {
   const [boardTitleDraft, setBoardTitleDraft] = useState('')
   const [presence, setPresence] = useState([])
   const [compactLabels, setCompactLabels] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)
 
   useEffect(() => {
     upsertPresence(boardId, user.uid, user.email, user.photoURL)
@@ -88,11 +91,26 @@ export default function BoardPage() {
     const map = {}
     for (const l of lists) map[l.id] = []
     for (const c of cards) {
+      if (c.archived) continue
       if (!map[c.listId]) map[c.listId] = []
       map[c.listId].push(c)
     }
     return map
   }, [lists, cards])
+
+  const archivedCards = useMemo(() => cards.filter((c) => c.archived), [cards])
+
+  const presenceByEmail = useMemo(() => {
+    const map = {}
+    for (const p of presence) map[p.email] = p
+    return map
+  }, [presence])
+
+  const memberPhotos = useMemo(() => {
+    const map = {}
+    for (const p of presence) if (p.photoURL) map[p.email] = p.photoURL
+    return map
+  }, [presence])
 
   if (board === null) return <Navigate to="/" replace />
   if (board === undefined) return null
@@ -105,7 +123,15 @@ export default function BoardPage() {
     setAddingList(false)
   }
 
-  async function handleDeleteCard(cardId) {
+  async function handleArchiveCard(cardId) {
+    await updateCard(boardId, cardId, { archived: true })
+  }
+
+  async function handleRestoreCard(cardId) {
+    await updateCard(boardId, cardId, { archived: false })
+  }
+
+  async function handlePermanentDelete(cardId) {
     await deleteCard(boardId, cardId)
   }
 
@@ -228,8 +254,13 @@ export default function BoardPage() {
       ? { ...styles.boardArea, background: board.background.value }
       : styles.boardArea
 
+  const rootStyle = {
+    height: '100vh', display: 'flex', flexDirection: 'column',
+    ...(board.theme?.accent ? { '--accent-blue': board.theme.accent } : {}),
+  }
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={rootStyle}>
       <Navbar
         boardTitle={board.title}
         centerSlot={
@@ -244,10 +275,15 @@ export default function BoardPage() {
         icons={
           <>
             <div style={{ display: 'flex', alignItems: 'center', marginLeft: 8, marginRight: 4 }}>
-              {presence
-                .filter((p) => Date.now() - p.lastSeen < 60000)
-                .map((p) => <AvatarBubble key={p.id} email={p.email} photoURL={p.photoURL} overlap />)}
+              {(board.memberEmails || []).map((email) => {
+                const p = presenceByEmail[email]
+                const online = !!p && Date.now() - p.lastSeen < 60000
+                return (
+                  <AvatarBubble key={email} email={email} photoURL={p?.photoURL} overlap online={online} lastSeen={p?.lastSeen} />
+                )
+              })}
             </div>
+            <IconButton icon="archive" emoji="🗄" title="Archiv" onClick={() => setShowArchive(true)} />
             <IconButton icon="labels" emoji="🏷" title="Kategorien" onClick={() => setShowLabels(true)} />
             <IconButton icon="automations" emoji="⚡" title="Automationen" onClick={() => setShowAutomations(true)} />
             <IconButton icon="members" emoji="👥" title="Mitglieder" onClick={() => setShowMembers(true)} />
@@ -269,6 +305,16 @@ export default function BoardPage() {
             <button className="btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowBackground(true)}>
               Hintergrund ändern
             </button>
+
+            <div>
+              <label className="field-label">Akzentfarbe</label>
+              <ColorGrid
+                value={board.theme?.accent}
+                onChange={(c) => updateBoard(boardId, { theme: { accent: c } })}
+                onClear={() => updateBoard(boardId, { theme: null })}
+                swatchSize={22}
+              />
+            </div>
 
             <div>
               <label className="field-label">Nur-Lese-Freigabe</label>
@@ -330,6 +376,7 @@ export default function BoardPage() {
                           cards={(cardsByList[list.id] || []).slice().sort((a, b) => a.order - b.order)}
                           labels={board.labels || []}
                           members={board.memberEmails || []}
+                          memberPhotos={memberPhotos}
                           search={search}
                           dragHandleProps={dragProvided.dragHandleProps}
                           compactLabels={compactLabels}
@@ -340,7 +387,7 @@ export default function BoardPage() {
                           onRenameList={(title) => updateList(boardId, list.id, { title })}
                           onRecolorList={(color) => updateList(boardId, list.id, { color })}
                           onQuickUpdateCard={handleCardUpdate}
-                          onDeleteCard={handleDeleteCard}
+                          onArchiveCard={handleArchiveCard}
                         />
                       </div>
                     )}
@@ -380,10 +427,11 @@ export default function BoardPage() {
           card={activeCard}
           labels={board.labels || []}
           members={board.memberEmails || []}
+          memberPhotos={memberPhotos}
           currentUserEmail={user.email}
           onClose={() => setActiveCard(null)}
           onSave={(data) => handleCardUpdate(activeCard.id, data)}
-          onDelete={async () => { await deleteCard(boardId, activeCard.id); setActiveCard(null) }}
+          onDelete={async () => { await handleArchiveCard(activeCard.id); setActiveCard(null) }}
           onManageLabels={() => setShowLabels(true)}
           onAddComment={(text) => addComment(boardId, activeCard.id, text, user.email)}
         />
@@ -399,6 +447,15 @@ export default function BoardPage() {
         />
       )}
       {showAutomations && <AutomationsModal board={board} lists={lists} onClose={() => setShowAutomations(false)} />}
+      {showArchive && (
+        <ArchiveModal
+          cards={archivedCards}
+          lists={lists}
+          onRestore={handleRestoreCard}
+          onDeleteForever={handlePermanentDelete}
+          onClose={() => setShowArchive(false)}
+        />
+      )}
     </div>
   )
 }
