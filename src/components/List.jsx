@@ -6,9 +6,9 @@ import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, CtxConfirm, useConte
 const LIST_COLORS = [null, '#6b8f71', '#d4a017', '#c1502e', '#4c6b8a', '#6e4b69', '#8a9a5b']
 
 export default function List({
-  list, cards, labels, members, search, dragHandleProps, compactLabels, onToggleCompactLabels,
+  list, cards, labels, members, memberPhotos, search, dragHandleProps, compactLabels, onToggleCompactLabels,
   onAddCard, onCardClick, onDeleteList, onRenameList, onRecolorList,
-  onQuickUpdateCard, onDeleteCard,
+  onQuickUpdateCard, onArchiveCard,
 }) {
   const [adding, setAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -89,12 +89,13 @@ export default function List({
                   index={i}
                   labels={labels}
                   members={members}
+                  memberPhotos={memberPhotos}
                   compactLabels={compactLabels}
                   onToggleCompactLabels={onToggleCompactLabels}
                   dimmed={!matches}
                   onClick={() => onCardClick(card)}
                   onQuickUpdate={(data) => onQuickUpdateCard(card.id, data)}
-                  onDelete={() => onDeleteCard(card.id)}
+                  onArchive={() => onArchiveCard(card.id)}
                 />
               )
             })}

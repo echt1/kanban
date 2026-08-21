@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Draggable } from '@hello-pangea/dnd'
-import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, CtxConfirm, useContextMenu } from './ContextMenu'
+import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, useContextMenu } from './ContextMenu'
 import { renderMarkdownLite } from '../lib/markdown'
 import AvatarBubble from './AvatarBubble'
 
@@ -20,11 +20,10 @@ function hostnameOf(url) {
 
 const LABEL_CAP = 5
 
-export default function CardItem({ card, index, labels, members, dimmed, compactLabels, onToggleCompactLabels, onClick, onQuickUpdate, onDelete }) {
+export default function CardItem({ card, index, labels, members, memberPhotos, dimmed, compactLabels, onToggleCompactLabels, onClick, onQuickUpdate, onArchive }) {
   const { menu, open, close } = useContextMenu()
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(card.title)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [labelSubmenuPos, setLabelSubmenuPos] = useState(null)
   const moreLabelsRef = useRef(null)
   const [hovering, setHovering] = useState(false)
@@ -34,7 +33,6 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
 
   function closeMenu() {
     close()
-    setConfirmingDelete(false)
     setLabelSubmenuPos(null)
   }
 
@@ -81,8 +79,9 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
     }
   }, [editingTitle])
 
-  // Entf/Backspace löscht die Karte, während man mit der Maus darüber ist
-  // (nicht wenn gerade irgendwo getippt wird)
+  // Entf/Backspace archiviert die Karte, während man mit der Maus darüber ist
+  // (nicht wenn gerade irgendwo getippt wird). Keine Bestätigung nötig, da
+  // archivierte Karten im Archiv wiederherstellbar sind.
   useEffect(() => {
     function handleKey(e) {
       if (!hovering || editingTitle) return
@@ -90,16 +89,12 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
-        const rect = cardRef.current?.getBoundingClientRect()
-        if (rect) {
-          open({ preventDefault: () => {}, stopPropagation: () => {}, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 })
-          setConfirmingDelete(true)
-        }
+        onArchive()
       }
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [hovering, editingTitle, open])
+  }, [hovering, editingTitle, onArchive])
 
   const coverStyle = card.cover?.type === 'color' && card.cover.value
     ? { background: card.cover.value, height: 35 }
@@ -238,7 +233,9 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
                 )}
                 {(card.assignees || []).length > 0 && (
                   <div style={styles.assigneeRow}>
-                    {card.assignees.map((email) => <AvatarBubble key={email} email={email} size={20} />)}
+                    {card.assignees.map((email) => (
+                      <AvatarBubble key={email} email={email} photoURL={memberPhotos?.[email]} size={20} />
+                    ))}
                   </div>
                 )}
               </div>
@@ -249,74 +246,64 @@ export default function CardItem({ card, index, labels, members, dimmed, compact
 
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} onClose={closeMenu}>
-          {confirmingDelete ? (
-            <CtxConfirm
-              text="Karte wirklich löschen?"
-              onConfirm={() => { onDelete(); closeMenu() }}
-              onCancel={() => setConfirmingDelete(false)}
-            />
-          ) : (
+          <CtxItem onClick={() => { onQuickUpdate({ done: !card.done }); closeMenu() }} icon={card.done ? '↺' : '✓'}>
+            {card.done ? 'Als offen markieren' : 'Als erledigt markieren'}
+          </CtxItem>
+          <CtxDivider />
+          <CtxSectionLabel>Fällig</CtxSectionLabel>
+          <CtxItem onClick={() => { onQuickUpdate({ dueDate: isoInDays(0) }); closeMenu() }}>Heute</CtxItem>
+          <CtxItem onClick={() => { onQuickUpdate({ dueDate: isoInDays(1) }); closeMenu() }}>Morgen</CtxItem>
+          <CtxItem onClick={() => { onQuickUpdate({ dueDate: isoInDays(7) }); closeMenu() }}>In einer Woche</CtxItem>
+          {card.dueDate && (
+            <CtxItem onClick={() => { onQuickUpdate({ dueDate: null }); closeMenu() }}>Datum entfernen</CtxItem>
+          )}
+
+          {labels.length > 0 && (
             <>
-              <CtxItem onClick={() => { onQuickUpdate({ done: !card.done }); closeMenu() }} icon={card.done ? '↺' : '✓'}>
-                {card.done ? 'Als offen markieren' : 'Als erledigt markieren'}
-              </CtxItem>
               <CtxDivider />
-              <CtxSectionLabel>Fällig</CtxSectionLabel>
-              <CtxItem onClick={() => { onQuickUpdate({ dueDate: isoInDays(0) }); closeMenu() }}>Heute</CtxItem>
-              <CtxItem onClick={() => { onQuickUpdate({ dueDate: isoInDays(1) }); closeMenu() }}>Morgen</CtxItem>
-              <CtxItem onClick={() => { onQuickUpdate({ dueDate: isoInDays(7) }); closeMenu() }}>In einer Woche</CtxItem>
-              {card.dueDate && (
-                <CtxItem onClick={() => { onQuickUpdate({ dueDate: null }); closeMenu() }}>Datum entfernen</CtxItem>
+              <CtxSectionLabel>Kategorien</CtxSectionLabel>
+              {labels.slice(0, LABEL_CAP).map((l) => (
+                <div key={l.id} className="ctx-label-row" onClick={() => toggleLabel(l.id)}>
+                  <span className="ctx-swatch" style={{ background: l.color }} />
+                  <span style={{ flex: 1 }}>{l.name}</span>
+                  {(card.labelIds || []).includes(l.id) && <span>✓</span>}
+                </div>
+              ))}
+              {labels.length > LABEL_CAP && (
+                <div
+                  ref={moreLabelsRef}
+                  className="ctx-item"
+                  style={{ justifyContent: 'space-between' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const r = moreLabelsRef.current.getBoundingClientRect()
+                    setLabelSubmenuPos(labelSubmenuPos ? null : { x: r.right + 4, y: r.top })
+                  }}
+                >
+                  <span>Weitere ({labels.length - LABEL_CAP})</span>
+                  <span>▸</span>
+                </div>
               )}
-
-              {labels.length > 0 && (
-                <>
-                  <CtxDivider />
-                  <CtxSectionLabel>Kategorien</CtxSectionLabel>
-                  {labels.slice(0, LABEL_CAP).map((l) => (
-                    <div key={l.id} className="ctx-label-row" onClick={() => toggleLabel(l.id)}>
-                      <span className="ctx-swatch" style={{ background: l.color }} />
-                      <span style={{ flex: 1 }}>{l.name}</span>
-                      {(card.labelIds || []).includes(l.id) && <span>✓</span>}
-                    </div>
-                  ))}
-                  {labels.length > LABEL_CAP && (
-                    <div
-                      ref={moreLabelsRef}
-                      className="ctx-item"
-                      style={{ justifyContent: 'space-between' }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const r = moreLabelsRef.current.getBoundingClientRect()
-                        setLabelSubmenuPos(labelSubmenuPos ? null : { x: r.right + 4, y: r.top })
-                      }}
-                    >
-                      <span>Weitere ({labels.length - LABEL_CAP})</span>
-                      <span>▸</span>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {(members || []).length > 0 && (
-                <>
-                  <CtxDivider />
-                  <CtxSectionLabel>Zugewiesen</CtxSectionLabel>
-                  {members.map((email) => (
-                    <div key={email} className="ctx-label-row" onClick={() => toggleAssignee(email)}>
-                      <AvatarBubble email={email} size={18} />
-                      <span style={{ flex: 1, marginLeft: 4 }}>{email}</span>
-                      {(card.assignees || []).includes(email) && <span>✓</span>}
-                    </div>
-                  ))}
-                </>
-              )}
-
-              <CtxDivider />
-              <CtxItem onClick={() => { onClick(); closeMenu() }} icon="✎">Karte öffnen</CtxItem>
-              <CtxItem danger onClick={() => setConfirmingDelete(true)} icon="🗑">Karte löschen</CtxItem>
             </>
           )}
+
+          {(members || []).length > 0 && (
+            <>
+              <CtxDivider />
+              <CtxSectionLabel>Zugewiesen</CtxSectionLabel>
+              {members.map((email) => (
+                <div key={email} className="ctx-label-row" onClick={() => toggleAssignee(email)}>
+                  <AvatarBubble email={email} photoURL={memberPhotos?.[email]} size={18} />
+                  <span style={{ flex: 1, marginLeft: 4 }}>{email}</span>
+                  {(card.assignees || []).includes(email) && <span>✓</span>}
+                </div>
+              ))}
+            </>
+          )}
+
+          <CtxDivider />
+          <CtxItem onClick={() => { onClick(); closeMenu() }} icon="✎">Karte öffnen</CtxItem>
+          <CtxItem onClick={() => { onArchive(); closeMenu() }} icon="🗄">Archivieren</CtxItem>
         </ContextMenu>
       )}
 

@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import ColorGrid from './ColorGrid'
 import Select from './Select'
-import ConfirmButton from './ConfirmButton'
 import { renderMarkdownLite } from '../lib/markdown'
 import AvatarBubble from './AvatarBubble'
 
@@ -20,7 +19,7 @@ function formatTimestamp(ms) {
   return new Date(ms).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function CardModal({ card, labels, members, currentUserEmail, onClose, onSave, onDelete, onManageLabels, onAddComment }) {
+export default function CardModal({ card, labels, members, memberPhotos, currentUserEmail, onClose, onSave, onDelete, onManageLabels, onAddComment }) {
   const [title, setTitle] = useState(card.title)
   const [description, setDescription] = useState(card.description || '')
   const [dueDate, setDueDate] = useState(card.dueDate || '')
@@ -247,7 +246,7 @@ export default function CardModal({ card, labels, members, currentUserEmail, onC
                   outline: assignees.includes(email) ? '2px solid var(--text-primary)' : 'none',
                 }}
               >
-                <AvatarBubble email={email} size={20} />
+                <AvatarBubble email={email} photoURL={memberPhotos?.[email]} size={20} />
                 <span>{email}</span>
               </button>
             ))}
@@ -341,13 +340,13 @@ export default function CardModal({ card, labels, members, currentUserEmail, onC
           </form>
 
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <ConfirmButton
-              className="btn-danger"
+            <button
+              className="btn-ghost"
               style={{ padding: '8px 14px', fontSize: 14, fontWeight: 600, borderRadius: 6 }}
-              label="Karte löschen"
-              confirmText="Karte wirklich löschen?"
-              onConfirm={onDelete}
-            />
+              onClick={onDelete}
+            >
+              🗄 Archivieren
+            </button>
             <button className="btn-ghost" onClick={onClose}>Schließen</button>
           </div>
         </div>
