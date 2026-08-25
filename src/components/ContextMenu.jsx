@@ -20,8 +20,12 @@ export function useContextMenu() {
   return { menu, open, close, triggerRef }
 }
 
-export default function ContextMenu({ x, y, onClose, excludeRef, children }) {
-  const ref = useRef(null)
+export default function ContextMenu({ x, y, onClose, excludeRef, containerRef, children }) {
+  const internalRef = useRef(null)
+  // Erlaubt es Eltern-Komponenten, an das DOM-Element dieses Menüs heranzukommen
+  // (z.B. um es als excludeRef eines anderen ContextMenu zu verwenden, damit
+  // Klicks in einem Untermenü nicht das Elternmenü schließen).
+  const ref = containerRef || internalRef
   const [pos, setPos] = useState({ x, y })
 
   useEffect(() => {

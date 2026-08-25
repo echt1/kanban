@@ -26,6 +26,7 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
   const [titleDraft, setTitleDraft] = useState(card.title)
   const [labelSubmenuPos, setLabelSubmenuPos] = useState(null)
   const moreLabelsRef = useRef(null)
+  const labelSubmenuRef = useRef(null)
   const [hovering, setHovering] = useState(false)
   const cardRef = useRef(null)
   const titleAreaRef = useRef(null)
@@ -251,7 +252,7 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
       </Draggable>
 
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} onClose={closeMenu}>
+        <ContextMenu x={menu.x} y={menu.y} onClose={closeMenu} excludeRef={labelSubmenuRef}>
           <CtxItem onClick={() => { onQuickUpdate({ done: !card.done }); closeMenu() }} icon={card.done ? '↺' : '✓'}>
             {card.done ? 'Als offen markieren' : 'Als erledigt markieren'}
           </CtxItem>
@@ -280,6 +281,10 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
                   ref={moreLabelsRef}
                   className="ctx-item"
                   style={{ justifyContent: 'space-between' }}
+                  onMouseEnter={() => {
+                    const r = moreLabelsRef.current.getBoundingClientRect()
+                    setLabelSubmenuPos({ x: r.right + 4, y: r.top })
+                  }}
                   onClick={(e) => {
                     e.stopPropagation()
                     const r = moreLabelsRef.current.getBoundingClientRect()
@@ -314,7 +319,13 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
       )}
 
       {labelSubmenuPos && (
-        <ContextMenu x={labelSubmenuPos.x} y={labelSubmenuPos.y} onClose={() => setLabelSubmenuPos(null)} excludeRef={moreLabelsRef}>
+        <ContextMenu
+          x={labelSubmenuPos.x}
+          y={labelSubmenuPos.y}
+          onClose={() => setLabelSubmenuPos(null)}
+          excludeRef={moreLabelsRef}
+          containerRef={labelSubmenuRef}
+        >
           {overflowLabels.map((l) => (
             <div key={l.id} className="ctx-label-row" onClick={() => toggleLabel(l.id)}>
               <span className="ctx-swatch" style={{ background: l.color }} />
