@@ -51,7 +51,7 @@ export default function Login() {
   return (
     <div style={styles.wrap}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Board</h1>
+        <h1 style={styles.title}>Kanban</h1>
         <p style={styles.subtitle}>Dein privates Kanban-Board.</p>
 
         <button className="btn" style={{ width: '100%', marginTop: 24 }} onClick={handleGoogle}>
