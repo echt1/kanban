@@ -5,6 +5,7 @@ import {
 } from 'firebase/auth'
 import { auth, googleProvider } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
+import { isDiscord } from '../discord'
 import { Navigate } from 'react-router-dom'
 
 export default function Login() {
@@ -54,11 +55,14 @@ export default function Login() {
         <h1 style={styles.title}>Kanban</h1>
         <p style={styles.subtitle}>Dein privates Kanban-Board.</p>
 
-        <button className="btn" style={{ width: '100%', marginTop: 24 }} onClick={handleGoogle}>
-          Mit Google anmelden
-        </button>
-
-        <div style={styles.divider}><span>oder</span></div>
+        {!isDiscord && (
+          <>
+            <button className="btn" style={{ width: '100%', marginTop: 24 }} onClick={handleGoogle}>
+              Mit Google anmelden
+            </button>
+            <div style={styles.divider}><span>oder</span></div>
+          </>
+        )}
 
         <form onSubmit={handleEmailAuth}>
           <label className="field-label">E-Mail</label>

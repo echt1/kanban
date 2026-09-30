@@ -1,0 +1,34 @@
+import { DiscordSDK, patchUrlMappings } from '@discord/embedded-app-sdk'
+
+// Discord hängt beim Start einer Aktivität immer "frame_id" an die URL.
+// Damit erkennen wir, ob die App in Discord oder ganz normal im Browser läuft.
+export const isDiscord = new URLSearchParams(window.location.search).has('frame_id')
+
+// Die Application-ID steckt im Hostnamen: <APP_ID>.discordsays.com
+const clientId = window.location.hostname.split('.')[0]
+
+let sdk = null
+
+if (isDiscord) {
+  // Discord blockiert alle externen Server. Deshalb werden Anfragen an Firebase
+  // über Discords Proxy geleitet. Die Prefixe hier MÜSSEN 1:1 so im
+  // Discord Developer Portal unter Activities > URL Mappings stehen.
+  patchUrlMappings([
+    { prefix: '/fb-identity', target: 'identitytoolkit.googleapis.com' },
+    { prefix: '/fb-token', target: 'securetoken.googleapis.com' },
+    { prefix: '/fb-firestore', target: 'firestore.googleapis.com' },
+  ])
+  sdk = new DiscordSDK(clientId)
+}
+
+// Sagt Discord "die App ist geladen" (sonst bleibt der Ladebildschirm stehen).
+export async function initDiscord() {
+  if (!sdk) return
+  try {
+    await sdk.ready()
+  } catch (e) {
+    console.error('Discord SDK ready() fehlgeschlagen:', e)
+  }
+}
+
+export { sdk }

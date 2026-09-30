@@ -1,9 +1,12 @@
+import { isDiscord } from './discord'
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import {
+  getAuth, initializeAuth, GoogleAuthProvider,
+  indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence,
+} from 'firebase/auth'
+import { getFirestore, initializeFirestore } from 'firebase/firestore'
 
 // Diese Werte kommen aus deiner .env.local (siehe .env.example).
-// Nie echte Keys direkt hier eintragen, wenn das Repo öffentlich ist -
 // Firebase Web-Config ist zwar kein Geheimnis, aber sauberer ist sauberer.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,6 +19,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 
-export const auth = getAuth(app)
-export const db = getFirestore(app)
+// In Discord: kein Popup/iframe-Resolver (der lädt Google-Skripte, die geblockt werden)
+// und Firestore per Long-Polling (funktioniert zuverlässiger hinter dem Proxy).
+export const auth = isDiscord
+  ? initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence],
+    })
+  : getAuth(app)
+
+export const db = isDiscord
+  ? initializeFirestore(app, { experimentalForceLongPolling: true })
+  : getFirestore(app)
+
 export const googleProvider = new GoogleAuthProvider()
