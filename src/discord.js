@@ -7,6 +7,8 @@ export const isDiscord = new URLSearchParams(window.location.search).has('frame_
 // Die Application-ID steckt im Hostnamen: <APP_ID>.discordsays.com
 const clientId = window.location.hostname.split('.')[0]
 
+const workerUrl = import.meta.env.VITE_AUTH_WORKER_URL || ''
+
 let sdk = null
 
 if (isDiscord) {
@@ -17,18 +19,19 @@ if (isDiscord) {
     { prefix: '/fb-identity', target: 'identitytoolkit.googleapis.com' },
     { prefix: '/fb-token', target: 'securetoken.googleapis.com' },
     { prefix: '/fb-firestore', target: 'firestore.googleapis.com' },
+    // Auth-Worker (Cloudflare) für den Discord-Login
+    ...(workerUrl ? [{ prefix: '/auth-api', target: new URL(workerUrl).host }] : []),
   ])
   sdk = new DiscordSDK(clientId)
 }
 
 // Sagt Discord "die App ist geladen" (sonst bleibt der Ladebildschirm stehen).
-export async function initDiscord() {
-  if (!sdk) return
-  try {
-    await sdk.ready()
-  } catch (e) {
-    console.error('Discord SDK ready() fehlgeschlagen:', e)
-  }
+const readyPromise = sdk
+  ? sdk.ready().catch((e) => console.error('Discord SDK ready() fehlgeschlagen:', e))
+  : Promise.resolve()
+
+export function initDiscord() {
+  return readyPromise
 }
 
-export { sdk }
+export { sdk, clientId, readyPromise, workerUrl }

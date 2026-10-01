@@ -9,7 +9,7 @@ import { isDiscord } from '../discord'
 import { Navigate } from 'react-router-dom'
 
 export default function Login() {
-  const { user, loading } = useAuth()
+  const { user, loading, discordError } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
@@ -54,6 +54,9 @@ export default function Login() {
       <div style={styles.card}>
         <h1 style={styles.title}>Kanban</h1>
         <p style={styles.subtitle}>Dein privates Kanban-Board.</p>
+        {isDiscord && discordError && (
+          <p style={styles.error}>Discord-Login hat nicht geklappt ({discordError}). Du kannst dich stattdessen per E-Mail anmelden.</p>
+        )}
 
         {!isDiscord && (
           <>

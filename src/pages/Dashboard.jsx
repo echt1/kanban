@@ -5,6 +5,7 @@ import { subscribeBoards, createBoard, deleteBoard, createList } from '../lib/fi
 import Navbar from '../components/Navbar'
 import CreateBoardModal from '../components/CreateBoardModal'
 import ConfirmButton from '../components/ConfirmButton'
+import { isDiscord } from '../discord'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -34,19 +35,32 @@ export default function Dashboard() {
   return (
     <div>
       <Navbar />
-      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '40px 24px' }}>
+      <div style={{ maxWidth: BIG ? 1200 : 1000, margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, margin: 0 }}>Deine Boards</h1>
           <div style={{ display: 'flex', gap: 10 }}>
-            <Link to="/calendar" className="btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
-              Kalender
-            </Link>
-            <Link to="/tables" className="btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
-              Tabellen
-            </Link>
+            {!isDiscord && (
+              <>
+                <Link to="/calendar" className="btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                  Kalender
+                </Link>
+                <Link to="/tables" className="btn-ghost" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                  Tabellen
+                </Link>
+              </>
+            )}
             <button className="btn" onClick={() => setShowCreate(true)}>+ Neues Board</button>
           </div>
         </div>
+
+        {isDiscord && user.isDiscordOnly && (
+          <div style={{ ...emptyStyles.wrap, padding: '16px 20px', marginBottom: 24, textAlign: 'left' }}>
+            <span style={{ color: 'var(--muted)', fontSize: 15 }}>
+              Du bist mit einem neuen Discord-Konto angemeldet. Hast du schon Boards in einem anderen Konto?
+              Öffne die Einstellungen (⚙) und verknüpfe es dort.
+            </span>
+          </div>
+        )}
 
         {boards === null && <p style={{ color: 'var(--muted)' }}>lädt …</p>}
 
@@ -113,24 +127,28 @@ function BoardTile({ board: b, isOwner }) {
   )
 }
 
+// Größere Board-Karten (Barrierefreiheit) – aktuell nur in der Discord-Aktivität.
+// Für den normalen Browser ebenfalls: `const BIG = true`
+const BIG = isDiscord
+
 const styles = {
   sectionTitle: {
-    fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)',
+    fontSize: BIG ? 15 : 13, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)',
     marginBottom: 14, fontWeight: 700,
   },
   grid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18,
+    display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${BIG ? 300 : 220}px, 1fr))`, gap: BIG ? 24 : 18,
   },
   card: {
     background: 'var(--bg-surface)', border: '1px solid var(--line)', borderRadius: 8,
     overflow: 'hidden', transition: 'transform 0.12s ease',
   },
-  strip: { height: 48, width: '100%' },
-  cardBody: { padding: '16px 18px', minHeight: 68, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
-  cardTitle: { fontFamily: 'var(--font-display)', fontSize: 18, margin: 0, color: 'var(--text-primary)' },
+  strip: { height: BIG ? 72 : 48, width: '100%' },
+  cardBody: { padding: BIG ? '22px 24px' : '16px 18px', minHeight: BIG ? 110 : 68, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
+  cardTitle: { fontFamily: 'var(--font-display)', fontSize: BIG ? 24 : 18, margin: 0, color: 'var(--text-primary)' },
   cardFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
-  members: { fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' },
-  deleteBtn: { background: 'none', color: 'var(--muted)', fontSize: 12, padding: 0 },
+  members: { fontSize: BIG ? 15 : 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' },
+  deleteBtn: { background: 'none', color: 'var(--muted)', fontSize: BIG ? 15 : 12, padding: 0 },
 }
 
 const emptyStyles = {

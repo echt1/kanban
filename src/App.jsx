@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { isDiscord } from './discord'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import BoardPage from './pages/BoardPage'
@@ -33,9 +34,9 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/view/:boardId" element={<ViewBoardPage />} />
       <Route path="/" element={<Protected><Dashboard /></Protected>} />
-      <Route path="/calendar" element={<Protected><CalendarPage /></Protected>} />
-      <Route path="/tables" element={<Protected><TablesPage /></Protected>} />
-      <Route path="/tables/:tableId" element={<Protected><TableDetailPage /></Protected>} />
+      {!isDiscord && <Route path="/calendar" element={<Protected><CalendarPage /></Protected>} />}
+      {!isDiscord && <Route path="/tables" element={<Protected><TablesPage /></Protected>} />}
+      {!isDiscord && <Route path="/tables/:tableId" element={<Protected><TableDetailPage /></Protected>} />}
       <Route path="/board/:boardId" element={<Protected><BoardPage /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
