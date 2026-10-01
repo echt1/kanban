@@ -1,3 +1,5 @@
+import { imgUrl } from '../discord'
+
 const COLORS = ['#4c6b8a', '#c1502e', '#6b8f71', '#d4a017', '#6e4b69', '#3d5a78']
 
 function colorFor(str) {
@@ -34,7 +36,7 @@ export default function AvatarBubble({ email, photoURL, size = 28, overlap = fal
   return (
     <div style={{ position: 'relative', display: 'inline-block', marginLeft: overlap ? -8 : 0, flexShrink: 0 }} title={title}>
       {photoURL ? (
-        <img src={photoURL} alt={email} style={{ ...visualStyle, objectFit: 'cover' }} />
+        <img src={imgUrl(photoURL)} alt={email} style={{ ...visualStyle, objectFit: 'cover' }} />
       ) : (
         <div style={{
           ...visualStyle, background: colorFor(email || ''), color: '#fff',

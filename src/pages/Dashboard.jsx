@@ -5,7 +5,7 @@ import { subscribeBoards, createBoard, deleteBoard, createList } from '../lib/fi
 import Navbar from '../components/Navbar'
 import CreateBoardModal from '../components/CreateBoardModal'
 import ConfirmButton from '../components/ConfirmButton'
-import { isDiscord } from '../discord'
+import { isDiscord, imgUrl } from '../discord'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -99,7 +99,7 @@ export default function Dashboard() {
 
 function BoardTile({ board: b, isOwner }) {
   const stripStyle = b.background?.type === 'image' && b.background.value
-    ? { backgroundImage: `url(${b.background.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    ? { backgroundImage: `url("${imgUrl(b.background.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { background: b.background?.type === 'color' && b.background.value ? b.background.value : (b.color || '#4c6b8a') }
 
   return (

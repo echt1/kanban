@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { subscribeLists, subscribeCards } from '../lib/firestore'
+import { imgUrl } from '../discord'
 
 export default function ViewBoardPage() {
   const { boardId } = useParams()
@@ -34,7 +35,7 @@ export default function ViewBoardPage() {
   }
 
   const boardAreaStyle = board.background?.type === 'image' && board.background.value
-    ? { ...styles.boardArea, backgroundImage: `url(${board.background.value})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
+    ? { ...styles.boardArea, backgroundImage: `url("${imgUrl(board.background.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
     : board.background?.type === 'color' && board.background.value
       ? { ...styles.boardArea, background: board.background.value }
       : styles.boardArea
@@ -74,7 +75,7 @@ export default function ViewBoardPage() {
                         <div style={{ height: 35, background: card.cover.value, margin: '-10px -12px 8px' }} />
                       )}
                       {card.cover?.type === 'image' && card.cover.value && (
-                        <div style={{ height: 64, backgroundImage: `url(${card.cover.value})`, backgroundSize: 'cover', backgroundPosition: 'center', margin: '-10px -12px 8px' }} />
+                        <div style={{ height: 64, backgroundImage: `url("${imgUrl(card.cover.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center', margin: '-10px -12px 8px' }} />
                       )}
                       {cardLabels.length > 0 && (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>

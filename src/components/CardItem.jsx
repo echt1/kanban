@@ -3,6 +3,7 @@ import { Draggable } from '@hello-pangea/dnd'
 import ContextMenu, { CtxItem, CtxSectionLabel, CtxDivider, useContextMenu } from './ContextMenu'
 import { renderMarkdownLite } from '../lib/markdown'
 import AvatarBubble from './AvatarBubble'
+import { imgUrl } from '../discord'
 
 function isoInDays(days) {
   const d = new Date()
@@ -106,7 +107,7 @@ export default function CardItem({ card, index, labels, members, memberPhotos, d
   const coverStyle = card.cover?.type === 'color' && card.cover.value
     ? { background: card.cover.value, height: 35 }
     : card.cover?.type === 'image' && card.cover.value
-      ? { backgroundImage: `url(${card.cover.value})`, backgroundSize: 'cover', backgroundPosition: 'center', height: 64 }
+      ? { backgroundImage: `url("${imgUrl(card.cover.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center', height: 64 }
       : null
 
   return (

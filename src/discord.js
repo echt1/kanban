@@ -35,3 +35,10 @@ export function initDiscord() {
 }
 
 export { sdk, clientId, readyPromise, workerUrl }
+
+// In Discord sind externe Bilder gesperrt. Deshalb laufen sie über den Worker (/auth-api/img).
+export function imgUrl(url) {
+  if (!isDiscord || !workerUrl || !url || !/^https?:\/\//i.test(url)) return url
+  if (/^https:\/\/(cdn\.discordapp\.com|media\.discordapp\.net)\//.test(url)) return url
+  return `/.proxy/auth-api/img?url=${encodeURIComponent(url)}`
+}

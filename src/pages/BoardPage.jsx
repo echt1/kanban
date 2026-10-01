@@ -21,6 +21,7 @@ import AvatarBubble from '../components/AvatarBubble'
 import ConfirmButton from '../components/ConfirmButton'
 import ArchiveModal from '../components/ArchiveModal'
 import ColorGrid from '../components/ColorGrid'
+import { imgUrl } from '../discord'
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -249,7 +250,7 @@ export default function BoardPage() {
   const isOwner = board.ownerId === user.uid
 
   const boardAreaStyle = board.background?.type === 'image' && board.background.value
-    ? { ...styles.boardArea, backgroundImage: `url(${board.background.value})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
+    ? { ...styles.boardArea, backgroundImage: `url("${imgUrl(board.background.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
     : board.background?.type === 'color' && board.background.value
       ? { ...styles.boardArea, background: board.background.value }
       : styles.boardArea

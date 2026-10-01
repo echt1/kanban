@@ -21,7 +21,7 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Max-Age': '86400',
 }
@@ -44,8 +44,9 @@ export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
     try {
-      if (request.method !== 'POST') throw new HttpError(405, 'Nur POST erlaubt')
       const path = new URL(request.url).pathname
+      if (request.method === 'GET' && path === '/img') return await handleImage(request)
+      if (request.method !== 'POST') throw new HttpError(405, 'Nur POST erlaubt')
       const body = await request.json().catch(() => ({}))
       if (path === '/discord/login') return json(await handleLogin(env, body))
       if (path === '/link/create') return json(await handleLinkCreate(env, request))
@@ -57,6 +58,33 @@ export default {
       return json({ error: 'Interner Fehler im Auth-Worker' }, 500)
     }
   },
+}
+
+/* ---------- Bild-Proxy (für Discord, wo externe Bilder gesperrt sind) ---------- */
+
+async function handleImage(request) {
+  const target = new URL(request.url).searchParams.get('url') || ''
+  let u
+  try { u = new URL(target) } catch { throw new HttpError(400, 'URL ungültig') }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new HttpError(400, 'Nur http(s) erlaubt')
+  const res = await fetch(u.toString(), {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Kanban Image Proxy)', Accept: 'image/*' },
+    cf: { cacheTtl: 86400, cacheEverything: true },
+  })
+  if (!res.ok) throw new HttpError(502, 'Bild konnte nicht geladen werden')
+  const type = res.headers.get('Content-Type') || ''
+  if (!type.startsWith('image/')) throw new HttpError(415, 'Das ist keine Bilddatei')
+  if (Number(res.headers.get('Content-Length') || 0) > 15 * 1024 * 1024) throw new HttpError(413, 'Bild zu groß')
+  return new Response(res.body, {
+    status: 200,
+    headers: {
+      ...CORS,
+      'Content-Type': type,
+      'Cache-Control': 'public, max-age=86400',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+    },
+  })
 }
 
 /* ---------- Handler ---------- */

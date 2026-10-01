@@ -8,6 +8,7 @@ import Navbar from '../components/Navbar'
 import TableCellModal from '../components/TableCellModal'
 import ConfirmButton from '../components/ConfirmButton'
 import BackgroundModal from '../components/BackgroundModal'
+import { imgUrl } from '../discord'
 
 export default function TableDetailPage() {
   const { tableId } = useParams()
@@ -106,7 +107,7 @@ export default function TableDetailPage() {
   }
 
   const wrapStyle = table.background?.type === 'image' && table.background.value
-    ? { ...styles.wrap, backgroundImage: `url(${table.background.value})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
+    ? { ...styles.wrap, backgroundImage: `url("${imgUrl(table.background.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }
     : table.background?.type === 'color' && table.background.value
       ? { ...styles.wrap, background: table.background.value }
       : styles.wrap

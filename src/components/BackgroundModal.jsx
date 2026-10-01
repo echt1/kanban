@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { imgUrl } from '../discord'
 
 const PALETTE = [
   null, '#26272b', '#2e2320', '#20262b', '#1f2a20', '#2b2436', '#3a2222', '#22303a',
@@ -82,7 +83,7 @@ export default function BackgroundModal({ value, onSave, onClose }) {
             />
             {imageUrl && (
               <div style={{
-                height: 100, borderRadius: 8, backgroundImage: `url(${imageUrl})`,
+                height: 100, borderRadius: 8, backgroundImage: `url("${imgUrl(imageUrl)}")`,
                 backgroundSize: 'cover', backgroundPosition: 'center', marginBottom: 16,
                 border: '1px solid var(--line)',
               }} />

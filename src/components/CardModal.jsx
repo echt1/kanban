@@ -3,6 +3,7 @@ import ColorGrid from './ColorGrid'
 import Select from './Select'
 import { renderMarkdownLite } from '../lib/markdown'
 import AvatarBubble from './AvatarBubble'
+import { imgUrl } from '../discord'
 
 function googleCalendarUrl(title, isoDate) {
   const d = isoDate.replace(/-/g, '')
@@ -106,7 +107,7 @@ export default function CardModal({ card, labels, members, memberPhotos, current
           <div style={{ height: 32, background: card.cover.value }} />
         )}
         {card.cover?.type === 'image' && card.cover.value && (
-          <div style={{ height: 110, backgroundImage: `url(${card.cover.value})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+          <div style={{ height: 110, backgroundImage: `url("${imgUrl(card.cover.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
         )}
 
         <div style={{ padding: 24 }}>
