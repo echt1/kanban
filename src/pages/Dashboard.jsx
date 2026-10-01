@@ -5,7 +5,7 @@ import { subscribeBoards, createBoard, deleteBoard, createList } from '../lib/fi
 import Navbar from '../components/Navbar'
 import CreateBoardModal from '../components/CreateBoardModal'
 import ConfirmButton from '../components/ConfirmButton'
-import { isDiscord, imgUrl } from '../discord'
+import { isDiscord, imgUrl, activityId } from '../discord'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -15,7 +15,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!user) return
-    const unsub = subscribeBoards(user.uid, user.email, setBoards)
+    const unsub = subscribeBoards(user.uid, user.email, setBoards, activityId)
     return unsub
   }, [user])
 
@@ -29,8 +29,11 @@ export default function Dashboard() {
     navigate(`/board/${ref.id}`)
   }
 
+  const isMemberOf = (b) => (b.members || []).includes(user.uid) || (b.memberEmails || []).includes(user.email)
+  // Von anderen für diese Aktivität geöffnet, ich bin aber kein Mitglied -> nur ansehen
+  const guestBoards = activityId ? (boards || []).filter((b) => !isMemberOf(b) && b.activityId === activityId) : []
   const ownBoards = (boards || []).filter((b) => b.ownerId === user.uid)
-  const joinedBoards = (boards || []).filter((b) => b.ownerId !== user.uid)
+  const joinedBoards = (boards || []).filter((b) => b.ownerId !== user.uid && isMemberOf(b))
 
   return (
     <div>
@@ -83,8 +86,17 @@ export default function Dashboard() {
         {joinedBoards.length > 0 && (
           <>
             <h2 style={styles.sectionTitle}>Beigetreten</h2>
-            <div style={styles.grid}>
+            <div style={{ ...styles.grid, marginBottom: guestBoards.length > 0 ? 36 : 0 }}>
               {joinedBoards.map((b) => <BoardTile key={b.id} board={b} isOwner={false} />)}
+            </div>
+          </>
+        )}
+
+        {guestBoards.length > 0 && (
+          <>
+            <h2 style={styles.sectionTitle}>In dieser Aktivität geöffnet</h2>
+            <div style={styles.grid}>
+              {guestBoards.map((b) => <BoardTile key={b.id} board={b} isOwner={false} guest />)}
             </div>
           </>
         )}
@@ -97,20 +109,21 @@ export default function Dashboard() {
   )
 }
 
-function BoardTile({ board: b, isOwner }) {
+function BoardTile({ board: b, isOwner, guest = false }) {
   const stripStyle = b.background?.type === 'image' && b.background.value
     ? { backgroundImage: `url("${imgUrl(b.background.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { background: b.background?.type === 'color' && b.background.value ? b.background.value : (b.color || '#4c6b8a') }
 
   return (
-    <Link to={`/board/${b.id}`} style={{ textDecoration: 'none' }}>
+    <Link to={guest ? `/view/${b.id}` : `/board/${b.id}`} style={{ textDecoration: 'none' }}>
       <div style={styles.card}>
         <div style={{ ...styles.strip, ...stripStyle }} />
         <div style={styles.cardBody}>
           <h3 style={styles.cardTitle}>{b.title}</h3>
           <div style={styles.cardFooter}>
             <span style={styles.members}>
-              {(b.members?.length || 1)} Mitglied{(b.members?.length || 1) === 1 ? '' : 'er'}
+              {guest ? 'Nur ansehen' : `${b.members?.length || 1} Mitglied${(b.members?.length || 1) === 1 ? '' : 'er'}`}
+              {isOwner && activityId && b.activityId === activityId && ' · in Aktivität geöffnet'}
             </span>
             {isOwner && (
               <ConfirmButton

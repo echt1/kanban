@@ -34,7 +34,10 @@ export function initDiscord() {
   return readyPromise
 }
 
-export { sdk, clientId, readyPromise, workerUrl }
+// Eindeutige ID dieser Aktivitäts-Sitzung (alle Teilnehmer teilen sie)
+const activityId = sdk ? sdk.instanceId : null
+
+export { sdk, clientId, readyPromise, workerUrl, activityId }
 
 // In Discord sind externe Bilder gesperrt. Deshalb laufen sie über den Worker (/auth-api/img).
 export function imgUrl(url) {

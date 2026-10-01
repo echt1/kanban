@@ -1,6 +1,6 @@
 import { signInWithCustomToken } from 'firebase/auth'
 import { auth } from '../firebase'
-import { sdk, clientId, readyPromise, workerUrl } from '../discord'
+import { sdk, clientId, readyPromise, workerUrl, activityId } from '../discord'
 
 // Merkt sich Infos zur aktuellen Discord-Sitzung (nur im Speicher)
 export const discordSession = { accessToken: null, discord: null, linked: false }
@@ -27,7 +27,7 @@ export async function discordLogin() {
     prompt: 'none',
     scope: ['identify'],
   })
-  const data = await post('/discord/login', { code })
+  const data = await post('/discord/login', { code, instanceId: activityId })
   discordSession.accessToken = data.accessToken
   discordSession.discord = data.discord
   discordSession.linked = data.linked
@@ -42,7 +42,38 @@ export async function createLinkCode() {
 
 // Läuft in Discord: löst den Code ein und wechselt auf das verknüpfte Konto.
 export async function redeemLinkCode(code) {
-  const data = await post('/link/redeem', { code, accessToken: discordSession.accessToken })
+  const data = await post('/link/redeem', { code, accessToken: discordSession.accessToken, instanceId: activityId })
   discordSession.linked = true
   await signInWithCustomToken(auth, data.customToken)
+}
+
+// Browser: zeigt, mit welchen Discord-Konten das eigene Konto verknüpft ist.
+export async function getLinkStatus() {
+  const idToken = await auth.currentUser.getIdToken()
+  return post('/link/status', {}, { Authorization: `Bearer ${idToken}` })
+}
+
+// Browser: löst alle Discord-Verknüpfungen dieses Kontos.
+export async function unlinkDiscord() {
+  const idToken = await auth.currentUser.getIdToken()
+  return post('/link/unlink', {}, { Authorization: `Bearer ${idToken}` })
+}
+
+// Discord: wer ist gerade in der Aktivität? (inkl. Zuordnung zu Kanban-Konten)
+export async function getActivityParticipants() {
+  await readyPromise
+  const res = await sdk.commands.getInstanceConnectedParticipants()
+  const people = (res.participants || []).filter((p) => !p.bot)
+  const idToken = await auth.currentUser.getIdToken()
+  const { users } = await post(
+    '/participants/resolve',
+    { discordIds: people.map((p) => p.id) },
+    { Authorization: `Bearer ${idToken}` },
+  )
+  return people.map((p) => ({
+    discordId: p.id,
+    name: p.nick || p.global_name || p.username,
+    avatar: p.avatar ? `https://cdn.discordapp.com/avatars/${p.id}/${p.avatar}.png?size=64` : null,
+    uid: users[p.id]?.uid || `discord_${p.id}`,
+  }))
 }

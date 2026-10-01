@@ -1,21 +1,22 @@
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot,
-  query, orderBy, where, serverTimestamp, arrayUnion, arrayRemove, getDoc,
+  query, orderBy, where, serverTimestamp, arrayUnion, arrayRemove, getDoc, deleteField,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
 /* ---------- Boards ---------- */
 
-export function subscribeBoards(uid, email, callback) {
+export function subscribeBoards(uid, email, callback, activityId = null) {
   // Firestore-Regeln prüfen pro Board "uid in members ODER email in memberEmails".
   // Eine ungefilterte Collection-Query würde das nicht erfüllen (permission-denied),
   // deshalb zwei gezielte array-contains-Queries, deren Ergebnisse wir mergen.
   let membersResult = []
   let emailResult = []
+  let activityResult = []
 
   function emit() {
     const merged = new Map()
-    for (const b of [...membersResult, ...emailResult]) merged.set(b.id, b)
+    for (const b of [...membersResult, ...emailResult, ...activityResult]) merged.set(b.id, b)
     const boards = Array.from(merged.values()).sort((a, b) => {
       const ta = a.createdAt?.toMillis?.() || 0
       const tb = b.createdAt?.toMillis?.() || 0
@@ -36,7 +37,41 @@ export function subscribeBoards(uid, email, callback) {
     emit()
   })
 
-  return () => { unsub1(); unsub2() }
+  // Discord: Boards, die der Eigentümer für diese Aktivität geöffnet hat (nur ansehen)
+  let unsub3 = () => {}
+  if (activityId) {
+    const qActivity = query(collection(db, 'boards'), where('activityId', '==', activityId))
+    unsub3 = onSnapshot(
+      qActivity,
+      (snap) => {
+        activityResult = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        emit()
+      },
+      (err) => console.warn('Aktivitäts-Boards nicht ladbar (Firestore-Regeln aktualisiert?):', err.code),
+    )
+  }
+
+  return () => { unsub1(); unsub2(); unsub3() }
+}
+
+// Board für alle in der aktuellen Discord-Aktivität zum Ansehen öffnen / wieder schließen
+export async function setBoardActivity(boardId, activityId) {
+  return updateDoc(doc(db, 'boards', boardId), { activityId: activityId || deleteField() })
+}
+
+// Discord-Teilnehmer ohne E-Mail als vollwertiges Mitglied hinzufügen
+export async function addProfileMember(boardId, uid, profile) {
+  return updateDoc(doc(db, 'boards', boardId), {
+    members: arrayUnion(uid),
+    [`memberProfiles.${uid}`]: profile,
+  })
+}
+
+export async function removeProfileMember(boardId, uid) {
+  return updateDoc(doc(db, 'boards', boardId), {
+    members: arrayRemove(uid),
+    [`memberProfiles.${uid}`]: deleteField(),
+  })
 }
 
 export async function createBoard(title, color, uid, email) {
@@ -164,9 +199,9 @@ export async function addComment(boardId, cardId, text, authorEmail) {
 
 /* ---------- Presence (wer schaut sich das Board gerade an) ---------- */
 
-export async function upsertPresence(boardId, uid, email, photoURL) {
+export async function upsertPresence(boardId, uid, email, photoURL, via = 'web') {
   return setDoc(doc(db, 'boards', boardId, 'presence', uid), {
-    email, photoURL: photoURL || null, lastSeen: Date.now(),
+    email, photoURL: photoURL || null, lastSeen: Date.now(), via,
   })
 }
 

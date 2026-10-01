@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { subscribeLists, subscribeCards } from '../lib/firestore'
-import { imgUrl } from '../discord'
+import { imgUrl, isDiscord, activityId } from '../discord'
 
 export default function ViewBoardPage() {
   const { boardId } = useParams()
@@ -12,9 +12,11 @@ export default function ViewBoardPage() {
   const [cards, setCards] = useState([])
 
   useEffect(() => {
-    const unsubBoard = onSnapshot(doc(db, 'boards', boardId), (snap) => {
-      setBoard(snap.exists() ? { id: snap.id, ...snap.data() } : null)
-    })
+    const unsubBoard = onSnapshot(
+      doc(db, 'boards', boardId),
+      (snap) => setBoard(snap.exists() ? { id: snap.id, ...snap.data() } : null),
+      () => setBoard(null), // z.B. Freigabe wurde beendet
+    )
     const unsubLists = subscribeLists(boardId, setLists)
     const unsubCards = subscribeCards(boardId, setCards)
     return () => { unsubBoard(); unsubLists(); unsubCards() }
@@ -25,10 +27,11 @@ export default function ViewBoardPage() {
   }, [board?.title])
 
   if (board === undefined) return null
-  if (board === null || !board.public) {
+  const openInActivity = !!activityId && board?.activityId === activityId
+  if (board === null || !(board.public || openInActivity)) {
     return (
       <div style={styles.notFound}>
-        <p>Dieses Board ist nicht (mehr) öffentlich freigegeben.</p>
+        <p>Dieses Board ist nicht (mehr) freigegeben.</p>
         <Link to="/" className="btn">Zur Startseite</Link>
       </div>
     )
@@ -43,7 +46,9 @@ export default function ViewBoardPage() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <nav style={styles.nav}>
-        <span style={styles.brand}>Kanban</span>
+        {isDiscord
+          ? <Link to="/" style={{ ...styles.brand, textDecoration: 'none', color: 'inherit' }}>← Kanban</Link>
+          : <span style={styles.brand}>Kanban</span>}
         <span style={styles.crumb}>/ {board.title}</span>
         <span style={styles.badge}>Nur lesen</span>
       </nav>

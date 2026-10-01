@@ -1,12 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import ConfirmButton from './ConfirmButton'
 import { isDiscord, workerUrl } from '../discord'
-import { createLinkCode, redeemLinkCode, discordSession } from '../lib/discordAuth'
+import { createLinkCode, redeemLinkCode, discordSession, getLinkStatus, unlinkDiscord } from '../lib/discordAuth'
 
 function DiscordLink({ user }) {
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
+  const [accounts, setAccounts] = useState(null) // null = lädt, [] = nicht verknüpft
+  const canCheck = !!workerUrl && !isDiscord && !user.isDiscordOnly
+
+  useEffect(() => {
+    if (!canCheck) return
+    getLinkStatus().then((r) => setAccounts(r.accounts || [])).catch(() => setAccounts([]))
+  }, [canCheck])
+
   if (!workerUrl) return null
 
   async function run(fn) {
@@ -20,8 +29,27 @@ function DiscordLink({ user }) {
     return (
       <div style={{ marginTop: 24 }}>
         <label className="field-label">Discord</label>
+        {accounts && accounts.length > 0 && accounts.map((a) => (
+          <div key={a.id} style={styles.linked}>
+            {a.avatar
+              ? <img src={a.avatar} alt="" width={32} height={32} style={{ borderRadius: '50%' }} />
+              : <div style={styles.noAvatar}>D</div>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{a.name || 'Discord-Konto'}</div>
+              <div style={styles.hint2}>
+                {a.name ? 'Mit Discord verknüpft' : 'Verknüpft – Name erscheint nach dem nächsten Start der Aktivität'}
+              </div>
+            </div>
+            <ConfirmButton
+              className="btn-ghost"
+              label="Lösen"
+              confirmText="Verknüpfung wirklich lösen? In Discord bekommst du dann ein neues, leeres Konto."
+              onConfirm={() => run(async () => { await unlinkDiscord(); setAccounts([]) })}
+            />
+          </div>
+        ))}
         <p style={styles.hint}>
-          Erzeuge einen Code und gib ihn in der Discord-Aktivität ein (Einstellungen ⚙), damit dort dein Konto mit allen Boards geladen wird.
+          {accounts && accounts.length > 0 ? 'Weiteres Konto verknüpfen: erzeuge' : 'Erzeuge'} einen Code und gib ihn in der Discord-Aktivität ein (Einstellungen ⚙), damit dort dein Konto mit allen Boards geladen wird.
         </p>
         <button className="btn-ghost" disabled={busy} onClick={() => run(async () => {
           const r = await createLinkCode()
@@ -92,6 +120,15 @@ export default function SettingsModal({ user, onLogout, onClose, boardSection })
 }
 
 const styles = {
+  linked: {
+    display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
+    background: 'rgba(88,101,242,0.12)', padding: '10px 12px', borderRadius: 6,
+  },
+  noAvatar: {
+    width: 32, height: 32, borderRadius: '50%', background: '#5865F2', color: '#fff',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
+  },
+  hint2: { fontSize: 12, color: 'var(--muted)' },
   hint: { fontSize: 13, color: 'var(--muted)', margin: '4px 0 10px' },
   err: { fontSize: 13, color: 'var(--accent-clay)', marginTop: 8 },
   code: { fontFamily: 'var(--font-mono)', fontSize: 22, letterSpacing: '0.15em', marginTop: 12 },

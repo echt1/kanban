@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { imgUrl } from '../discord'
 
 const COLORS = ['#4c6b8a', '#c1502e', '#6b8f71', '#d4a017', '#6e4b69', '#3d5a78']
@@ -20,11 +21,29 @@ function formatLastSeen(ms) {
 // Zeigt einen Nutzer als Kreis: Foto falls vorhanden, sonst Anfangsbuchstabe.
 // Wenn `online` explizit übergeben wird (true/false), wird zusätzlich ein
 // Online/Offline-Zustand mit Tooltip dargestellt (ausgegraut wenn offline).
-export default function AvatarBubble({ email, photoURL, size = 28, overlap = false, online, lastSeen }) {
+// Kleines Discord-Abzeichen unten rechts. Eigenes Icon: public/icons/discord.png oder discord.svg ersetzen.
+function DiscordBadge({ size }) {
+  const [step, setStep] = useState(0) // 0 = png, 1 = svg, 2 = Farbpunkt
+  const d = Math.max(12, Math.round(size * 0.5))
+  const base = import.meta.env.BASE_URL
+  const common = { position: 'absolute', right: -4, bottom: -4, width: d, height: d, borderRadius: '50%' }
+  if (step === 2) return <span style={{ ...common, background: '#5865F2', border: '2px solid var(--bg-surface)' }} />
+  return (
+    <img
+      src={`${base}icons/discord.${step === 0 ? 'png' : 'svg'}`}
+      alt="Discord"
+      draggable={false}
+      onError={() => setStep(step + 1)}
+      style={{ ...common, background: '#5865F2', objectFit: 'contain', padding: 1, boxSizing: 'border-box' }}
+    />
+  )
+}
+
+export default function AvatarBubble({ email, photoURL, size = 28, overlap = false, online, lastSeen, viaDiscord = false }) {
   const initial = (email || '?')[0].toUpperCase()
   const showPresence = online !== undefined
   const dim = showPresence && !online
-  const title = showPresence ? `${email} — ${online ? 'Online' : formatLastSeen(lastSeen)}` : email
+  const title = showPresence ? `${email} — ${online ? (viaDiscord ? 'Online (über Discord)' : 'Online') : formatLastSeen(lastSeen)}` : email
 
   const visualStyle = {
     width: size, height: size, borderRadius: '50%',
@@ -46,6 +65,7 @@ export default function AvatarBubble({ email, photoURL, size = 28, overlap = fal
           {initial}
         </div>
       )}
+      {viaDiscord && <DiscordBadge size={size} />}
     </div>
   )
 }

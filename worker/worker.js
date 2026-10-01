@@ -51,6 +51,9 @@ export default {
       if (path === '/discord/login') return json(await handleLogin(env, body))
       if (path === '/link/create') return json(await handleLinkCreate(env, request))
       if (path === '/link/redeem') return json(await handleLinkRedeem(env, body))
+      if (path === '/participants/resolve') return json(await handleResolve(env, request, body))
+      if (path === '/link/status') return json(await handleLinkStatus(env, request))
+      if (path === '/link/unlink') return json(await handleLinkUnlink(env, request))
       throw new HttpError(404, 'Unbekannter Pfad')
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status)
@@ -94,9 +97,17 @@ async function handleLogin(env, body) {
   const accessToken = await discordExchangeCode(env, body.code)
   const du = await discordMe(accessToken)
   const link = await env.LINKS.get(`link:${du.id}`, 'json')
+  if (link) {
+    // Discord-Name/Avatar im Link aktuell halten (nur schreiben, wenn sich etwas geändert hat)
+    const info = publicDiscord(du)
+    if (JSON.stringify(link.discord) !== JSON.stringify(info)) {
+      link.discord = info
+      await env.LINKS.put(`link:${du.id}`, JSON.stringify(link))
+    }
+  }
   const identity = link || { uid: `discord_${du.id}`, email: `discord_${du.id}@discord.invalid` }
   return {
-    customToken: await mintCustomToken(env, identity, du),
+    customToken: await mintCustomToken(env, identity, du, cleanInstanceId(body.instanceId)),
     accessToken,
     linked: !!link,
     discord: publicDiscord(du),
@@ -124,16 +135,64 @@ async function handleLinkCreate(env, request) {
   return { code, expiresInMinutes: 10 }
 }
 
+async function requireUser(env, request) {
+  const idToken = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '')
+  if (!idToken) throw new HttpError(401, 'Nicht angemeldet')
+  const sa = getServiceAccount(env)
+  const payload = await verifyFirebaseIdToken(idToken, sa.project_id)
+  return payload.user_id || payload.sub
+}
+
+// Alle Discord-Verknüpfungen eines Firebase-Kontos (Anzahl ist klein, daher einfaches Durchsuchen)
+async function findLinks(env, uid) {
+  const out = []
+  const list = await env.LINKS.list({ prefix: 'link:' })
+  for (const k of list.keys) {
+    const entry = await env.LINKS.get(k.name, 'json')
+    if (entry && entry.uid === uid) out.push({ key: k.name, entry })
+  }
+  return out
+}
+
+// Ordnet Discord-IDs ihrem Kanban-Konto zu (verknüpft = echte UID, sonst Discord-Konto)
+async function handleResolve(env, request, body) {
+  await requireUser(env, request)
+  const ids = (Array.isArray(body.discordIds) ? body.discordIds : [])
+    .map(String).filter((i) => /^\d{5,25}$/.test(i)).slice(0, 25)
+  const users = {}
+  for (const id of ids) {
+    const link = await env.LINKS.get(`link:${id}`, 'json')
+    users[id] = { uid: link ? link.uid : `discord_${id}`, linked: !!link }
+  }
+  return { users }
+}
+
+async function handleLinkStatus(env, request) {
+  const uid = await requireUser(env, request)
+  const links = await findLinks(env, uid)
+  return {
+    linked: links.length > 0,
+    accounts: links.map(({ key, entry }) => entry.discord || { id: key.slice(5), name: null, avatar: null }),
+  }
+}
+
+async function handleLinkUnlink(env, request) {
+  const uid = await requireUser(env, request)
+  const links = await findLinks(env, uid)
+  for (const { key } of links) await env.LINKS.delete(key)
+  return { unlinked: links.length }
+}
+
 async function handleLinkRedeem(env, body) {
   if (!body.code || !body.accessToken) throw new HttpError(400, 'code oder accessToken fehlt')
   const du = await discordMe(body.accessToken)
   const key = `code:${String(body.code).trim().toUpperCase()}`
   const entry = await env.LINKS.get(key, 'json')
   if (!entry) throw new HttpError(400, 'Code ungültig oder abgelaufen')
-  await env.LINKS.put(`link:${du.id}`, JSON.stringify(entry))
+  await env.LINKS.put(`link:${du.id}`, JSON.stringify({ ...entry, discord: publicDiscord(du) }))
   await env.LINKS.delete(key)
   return {
-    customToken: await mintCustomToken(env, entry, du),
+    customToken: await mintCustomToken(env, entry, du, cleanInstanceId(body.instanceId)),
     linked: true,
     discord: publicDiscord(du),
   }
@@ -205,7 +264,13 @@ async function importPrivateKey(pem) {
   )
 }
 
-async function mintCustomToken(env, identity, du) {
+// Die Aktivitäts-ID (Discord instance_id) wird als Claim ins Login geschrieben.
+// Firestore-Regeln nutzen sie, damit Leute in derselben Aktivität freigegebene Boards lesen dürfen.
+function cleanInstanceId(v) {
+  return typeof v === 'string' && /^[\w-]{1,100}$/.test(v) ? v : null
+}
+
+async function mintCustomToken(env, identity, du, activityId) {
   const sa = getServiceAccount(env)
   const now = Math.floor(Date.now() / 1000)
   const header = { alg: 'RS256', typ: 'JWT' }
@@ -216,7 +281,10 @@ async function mintCustomToken(env, identity, du) {
     iat: now,
     exp: now + 3600,
     uid: identity.uid,
-    claims: { email: identity.email, email_verified: true, discordId: du.id },
+    claims: {
+      email: identity.email, email_verified: true, discordId: du.id,
+      ...(activityId ? { activityId } : {}),
+    },
   }
   const input = `${b64uText(JSON.stringify(header))}.${b64uText(JSON.stringify(payload))}`
   const key = await importPrivateKey(sa.private_key)

@@ -21,7 +21,7 @@ import AvatarBubble from '../components/AvatarBubble'
 import ConfirmButton from '../components/ConfirmButton'
 import ArchiveModal from '../components/ArchiveModal'
 import ColorGrid from '../components/ColorGrid'
-import { imgUrl } from '../discord'
+import { imgUrl, isDiscord } from '../discord'
 
 export default function BoardPage() {
   const { boardId } = useParams()
@@ -44,11 +44,11 @@ export default function BoardPage() {
   const [showArchive, setShowArchive] = useState(false)
 
   useEffect(() => {
-    upsertPresence(boardId, user.uid, user.email, user.photoURL)
-    const interval = setInterval(() => upsertPresence(boardId, user.uid, user.email, user.photoURL), 15000)
+    upsertPresence(boardId, user.uid, user.email, user.photoURL, isDiscord ? 'discord' : 'web')
+    const interval = setInterval(() => upsertPresence(boardId, user.uid, user.email, user.photoURL, isDiscord ? 'discord' : 'web'), 15000)
     function handleVisibility() {
       if (document.visibilityState === 'visible') {
-        upsertPresence(boardId, user.uid, user.email, user.photoURL)
+        upsertPresence(boardId, user.uid, user.email, user.photoURL, isDiscord ? 'discord' : 'web')
       }
     }
     document.addEventListener('visibilitychange', handleVisibility)
@@ -280,7 +280,14 @@ export default function BoardPage() {
                 const p = presenceByEmail[email]
                 const online = !!p && Date.now() - p.lastSeen < 60000
                 return (
-                  <AvatarBubble key={email} email={email} photoURL={p?.photoURL} overlap online={online} lastSeen={p?.lastSeen} />
+                  <AvatarBubble key={email} email={email} photoURL={p?.photoURL} overlap online={online} lastSeen={p?.lastSeen} viaDiscord={online && p?.via === 'discord'} />
+                )
+              })}
+              {Object.entries(board.memberProfiles || {}).map(([uid, pr]) => {
+                const p = presence.find((x) => x.id === uid)
+                const online = !!p && Date.now() - p.lastSeen < 60000
+                return (
+                  <AvatarBubble key={uid} email={pr.name} photoURL={pr.avatar || p?.photoURL} overlap online={online} lastSeen={p?.lastSeen} viaDiscord={online && p?.via === 'discord'} />
                 )
               })}
             </div>
