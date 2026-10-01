@@ -31,6 +31,12 @@ export async function discordLogin() {
   discordSession.accessToken = data.accessToken
   discordSession.discord = data.discord
   discordSession.linked = data.linked
+  // Discord-seitig anmelden. Ohne das verweigert Discord Befehle wie "Wer ist in der Aktivität?" (Fehler 4006)
+  try {
+    await sdk.commands.authenticate({ access_token: data.accessToken })
+  } catch (e) {
+    console.warn('Discord authenticate() fehlgeschlagen:', e)
+  }
   await signInWithCustomToken(auth, data.customToken)
 }
 
