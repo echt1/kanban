@@ -125,6 +125,11 @@ async function handleLinkCreate(env, request) {
   }
   if (!payload.email) throw new HttpError(400, 'Dein Konto hat keine E-Mail')
 
+  const uid = payload.user_id || payload.sub
+  if ((await findLinks(env, uid)).length > 0) {
+    throw new HttpError(409, 'Dein Konto ist bereits mit einem Discord-Konto verknüpft. Löse die Verknüpfung zuerst.')
+  }
+
   const bytes = crypto.getRandomValues(new Uint8Array(8))
   const code = Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('')
   await env.LINKS.put(
@@ -189,6 +194,17 @@ async function handleLinkRedeem(env, body) {
   const key = `code:${String(body.code).trim().toUpperCase()}`
   const entry = await env.LINKS.get(key, 'json')
   if (!entry) throw new HttpError(400, 'Code ungültig oder abgelaufen')
+
+  // Ein Kanban-Konto <-> ein Discord-Konto (Verknüpfung muss erst gelöst werden)
+  const existing = await env.LINKS.get(`link:${du.id}`, 'json')
+  if (existing && existing.uid !== entry.uid) {
+    throw new HttpError(409, 'Dieses Discord-Konto ist bereits mit einem anderen Kanban-Konto verknüpft.')
+  }
+  const others = (await findLinks(env, entry.uid)).filter((l) => l.key !== `link:${du.id}`)
+  if (others.length > 0) {
+    throw new HttpError(409, 'Dieses Kanban-Konto ist bereits mit einem anderen Discord-Konto verknüpft.')
+  }
+
   await env.LINKS.put(`link:${du.id}`, JSON.stringify({ ...entry, discord: publicDiscord(du) }))
   await env.LINKS.delete(key)
   return {

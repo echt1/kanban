@@ -6,6 +6,7 @@ import {
 import { auth, googleProvider } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { isDiscord } from '../discord'
+import LegalLinks from '../components/LegalLinks'
 import { Navigate } from 'react-router-dom'
 
 export default function Login() {
@@ -102,6 +103,7 @@ export default function Login() {
             {mode === 'signin' ? 'Registrieren' : 'Anmelden'}
           </button>
         </p>
+        <LegalLinks style={{ marginTop: 20 }} />
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import ConfirmButton from './ConfirmButton'
+import LegalLinks from './LegalLinks'
 import { isDiscord, workerUrl } from '../discord'
 import { createLinkCode, redeemLinkCode, discordSession, getLinkStatus, unlinkDiscord } from '../lib/discordAuth'
 
@@ -48,14 +49,23 @@ function DiscordLink({ user }) {
             />
           </div>
         ))}
-        <p style={styles.hint}>
-          {accounts && accounts.length > 0 ? 'Weiteres Konto verknüpfen: erzeuge' : 'Erzeuge'} einen Code und gib ihn in der Discord-Aktivität ein (Einstellungen ⚙), damit dort dein Konto mit allen Boards geladen wird.
-        </p>
-        <button className="btn-ghost" disabled={busy} onClick={() => run(async () => {
-          const r = await createLinkCode()
-          setMsg(`${r.code}`)
-        })}>Verknüpfungscode erzeugen</button>
-        {msg && <p style={styles.code}>{msg}<span style={styles.hint}>  (10 Min. gültig)</span></p>}
+        {accounts && accounts.length > 0 && (
+          <p style={styles.hint}>
+            Ein Konto kann nur mit einem Discord-Konto verknüpft sein. Um ein anderes zu verknüpfen, löse zuerst die bestehende Verknüpfung.
+          </p>
+        )}
+        {accounts && accounts.length === 0 && (
+          <>
+            <p style={styles.hint}>
+              Erzeuge einen Code und gib ihn in der Discord-Aktivität ein (Einstellungen ⚙), damit dort dein Konto mit allen Boards geladen wird.
+            </p>
+            <button className="btn-ghost" disabled={busy} onClick={() => run(async () => {
+              const r = await createLinkCode()
+              setMsg(`${r.code}`)
+            })}>Verknüpfungscode erzeugen</button>
+            {msg && <p style={styles.code}>{msg}<span style={styles.hint}>  (10 Min. gültig)</span></p>}
+          </>
+        )}
         {err && <p style={styles.err}>{err}</p>}
       </div>
     )
@@ -110,6 +120,11 @@ export default function SettingsModal({ user, onLogout, onClose, boardSection })
         </div>
 
         <DiscordLink user={user} />
+
+        <LegalLinks style={{ marginTop: 24, textAlign: 'left' }} />
+        <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
+          Daten löschen lassen: schreib an die Kontakt-E-Mail aus der Datenschutzerklärung.
+        </p>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
           <button className="btn-ghost" onClick={onClose}>Schließen</button>
