@@ -1,6 +1,6 @@
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot,
-  query, orderBy, where, serverTimestamp, arrayUnion, arrayRemove, getDoc, deleteField,
+  query, orderBy, where, serverTimestamp, arrayUnion, arrayRemove, getDoc, getDocs, deleteField,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -105,8 +105,20 @@ export async function inviteMember(boardId, email) {
 }
 
 export async function removeMember(boardId, email, uid) {
-  const updates = { memberEmails: arrayRemove(email.toLowerCase().trim()) }
-  if (uid) updates.members = arrayRemove(uid)
+  const mail = email.toLowerCase().trim()
+  const updates = { memberEmails: arrayRemove(mail) }
+
+  // Wer das Board schon geöffnet hat, steht zusätzlich mit seiner UID in "members".
+  // Die UID zur E-Mail finden wir über seinen Online-Status-Eintrag, sonst behielte
+  // die entfernte Person weiter Zugriff.
+  const uids = new Set(uid ? [uid] : [])
+  try {
+    const snap = await getDocs(query(collection(db, 'boards', boardId, 'presence'), where('email', '==', mail)))
+    snap.forEach((d) => uids.add(d.id))
+  } catch (e) {
+    console.warn('UID der entfernten Person nicht gefunden:', e)
+  }
+  if (uids.size > 0) updates.members = arrayRemove(...uids)
   return updateDoc(doc(db, 'boards', boardId), updates)
 }
 

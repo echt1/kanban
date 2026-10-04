@@ -110,6 +110,7 @@ export default function Dashboard() {
 }
 
 function BoardTile({ board: b, isOwner, guest = false }) {
+  const memberCount = Math.max(1, (b.memberEmails?.length || 0) + Object.keys(b.memberProfiles || {}).length)
   const stripStyle = b.background?.type === 'image' && b.background.value
     ? { backgroundImage: `url("${imgUrl(b.background.value)}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { background: b.background?.type === 'color' && b.background.value ? b.background.value : (b.color || '#4c6b8a') }
@@ -122,7 +123,7 @@ function BoardTile({ board: b, isOwner, guest = false }) {
           <h3 style={styles.cardTitle}>{b.title}</h3>
           <div style={styles.cardFooter}>
             <span style={styles.members}>
-              {guest ? 'Nur ansehen' : `${b.members?.length || 1} Mitglied${(b.members?.length || 1) === 1 ? '' : 'er'}`}
+              {guest ? 'Nur ansehen' : `${memberCount} Mitglied${memberCount === 1 ? '' : 'er'}`}
               {isOwner && activityId && b.activityId === activityId && ' · in Aktivität geöffnet'}
             </span>
             {isOwner && (

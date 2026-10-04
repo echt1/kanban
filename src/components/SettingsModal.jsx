@@ -49,11 +49,6 @@ function DiscordLink({ user }) {
             />
           </div>
         ))}
-        {accounts && accounts.length > 0 && (
-          <p style={styles.hint}>
-            Ein Konto kann nur mit einem Discord-Konto verknüpft sein. Um ein anderes zu verknüpfen, löse zuerst die bestehende Verknüpfung.
-          </p>
-        )}
         {accounts && accounts.length === 0 && (
           <>
             <p style={styles.hint}>
@@ -122,9 +117,6 @@ export default function SettingsModal({ user, onLogout, onClose, boardSection })
         <DiscordLink user={user} />
 
         <LegalLinks style={{ marginTop: 24, textAlign: 'left' }} />
-        <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 0' }}>
-          Daten löschen lassen: schreib an die Kontakt-E-Mail aus der Datenschutzerklärung.
-        </p>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 24 }}>
           <button className="btn-ghost" onClick={onClose}>Schließen</button>
